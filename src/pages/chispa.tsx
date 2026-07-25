@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, RotateCcw, Trophy } from "lucide-react";
-import AppBar from "../conponents/navbar"; // ajusta el path/nombre real de tu archivo
+
 
 type Nivel = "suave" | "atrevido" | "intenso";
 
@@ -296,7 +296,7 @@ function Chispa() {
   return (
     <div className="min-h-screen bg-[#1B1033] text-white pb-24">
       {/* AppBar global del juego: vuelve a /juegos, sea cual sea la pantalla interna */}
-      <AppBar titulo="Chispa 🔥" volverA="/juegos" />
+     
 
       <div className="max-w-md sm:max-w-lg mx-auto px-3 sm:px-5 pt-16">
         {pantalla === "config" ? (

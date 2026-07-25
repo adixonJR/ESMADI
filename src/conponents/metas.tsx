@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase from "../lib/Supabase.js";
+import supabase from "../lib/supabase.js";
 import {
   CalendarDays,
   Rocket,

@@ -28,8 +28,6 @@ function AppContent() {
     location.pathname.startsWith(ruta)
   );
 
-  const enJuego = location.pathname.startsWith("/juegos/chispa");
-
   return (
     <div className="min-h-screen bg-[#1a0f2e] text-white">
       <Navbar />
@@ -49,7 +47,7 @@ function AppContent() {
         </Routes>
       </main>
 
-      {!ocultarFooter && <Footer enJuego={enJuego} />}
+      {!ocultarFooter && <Footer />}
     </div>
   );
 }
