@@ -187,7 +187,7 @@ function Timeline() {
             return (
               <div
                 key={index}
-                ref={(el) => (refs.current[index] = el)}
+                ref={(el) => { refs.current[index] = el; }}
                 data-index={index}
                 className={`relative flex items-start sm:items-center gap-4 sm:gap-8 ${
                   izquierda ? "sm:flex-row" : "sm:flex-row-reverse"

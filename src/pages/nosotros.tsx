@@ -132,7 +132,7 @@ function Nosotros() {
               return (
                 <div
                   key={index}
-                  ref={(el) => (refs.current[index] = el)}
+                  ref={(el) => { refs.current[index] = el; }}
                   data-index={index}
                   className="relative flex gap-4 items-start"
                 >

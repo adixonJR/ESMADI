@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, ChangeEvent, FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   ChevronDown,

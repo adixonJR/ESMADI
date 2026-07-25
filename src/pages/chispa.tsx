@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, RotateCcw, Trophy, Dice5 } from "lucide-react";
+import { Clock, RotateCcw, Trophy } from "lucide-react";
 import AppBar from "../conponents/navbar"; // ajusta el path/nombre real de tu archivo
 
 type Nivel = "suave" | "atrevido" | "intenso";

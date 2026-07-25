@@ -12,6 +12,7 @@ import {
   BookHeart,
   ChevronRight,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /* ---------- Helpers de fechas ---------- */
@@ -67,6 +68,19 @@ function ContadorAnimado({ valor, duracion = 1500 }: { valor: number; duracion?:
   return <>{display.toLocaleString("es-ES")}</>;
 }
 
+/* ---------- Tipos ---------- */
+interface ExplorarItem {
+  id: string;
+  to: string | null;
+  icon: LucideIcon;
+  iconBg: string;
+  title: string;
+  desc: string;
+  button: string;
+  buttonClass: string;
+  disabled?: boolean;
+}
+
 function Inicio() {
   const fechaInicio = new Date("2022-05-22"); // 22 de mayo del 2022
   const hoy = new Date();
@@ -120,7 +134,7 @@ function Inicio() {
     },
   ];
 
-  const explorarItems = [
+  const explorarItems: ExplorarItem[] = [
     {
       id: "juegos",
       to: "/juegos",
@@ -359,23 +373,24 @@ function Inicio() {
 }
 
 /* ---------- Carrusel de Explorar (cuadraditos, varias tarjetas visibles) ---------- */
-function ExplorarCarrusel({ items }) {
-  const trackRef = useRef(null);
+function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const pausedRef = useRef(false);
-  const resumeTimeout = useRef(null);
+  const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPointerDown = useRef(false);
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getStep = () => {
     const track = trackRef.current;
     if (!track || !track.children[0]) return 0;
-    const card = track.children[0];
+    const card = track.children[0] as HTMLElement;
     const style = window.getComputedStyle(track);
     const gap = parseFloat(style.columnGap || style.gap || "0");
     return card.offsetWidth + gap;
   };
 
-  const scrollToIndex = (i) => {
+  const scrollToIndex = (i: number) => {
     const track = trackRef.current;
     if (!track) return;
     const clamped = Math.max(0, Math.min(i, items.length - 1));
@@ -415,7 +430,6 @@ function ExplorarCarrusel({ items }) {
     setActiveIndex(Math.max(0, Math.min(nearest, items.length - 1)));
   };
 
-  let scrollTimeout = useRef(null);
   const onScroll = () => {
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(handleScrollEnd, 100);
