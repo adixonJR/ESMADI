@@ -14,23 +14,21 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import supabase from "../lib/supabase.js";
 
 /* ---------- Helpers de fechas ---------- */
-
 // Días transcurridos entre dos fechas
 function diasEntre(desde: Date, hasta: Date) {
   const a = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
   const b = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
-
-// Día del año (1-366), usado para elegir mensaje/recuerdo "del día"
+// Día del año (1-366), usado para elegir el mensaje del día
 function diaDelAnio(fecha: Date) {
   const inicio = new Date(fecha.getFullYear(), 0, 0);
   const diff = fecha.getTime() - inicio.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
-
 // Días que faltan para la próxima ocurrencia de una fecha (mes/día), aunque ya haya pasado este año
 function diasHastaProximo(mes: number, dia: number) {
   const hoy = new Date();
@@ -41,15 +39,12 @@ function diasHastaProximo(mes: number, dia: number) {
   }
   return Math.round((proxima.getTime() - hoySinHora.getTime()) / (1000 * 60 * 60 * 24));
 }
-
 /* ---------- Contador animado (efecto "van pasando los números") ---------- */
 function ContadorAnimado({ valor, duracion = 1500 }: { valor: number; duracion?: number }) {
   const [display, setDisplay] = useState(0);
-
   useEffect(() => {
     let inicio: number | null = null;
     let frame: number;
-
     const paso = (timestamp: number) => {
       if (inicio === null) inicio = timestamp;
       const progreso = Math.min((timestamp - inicio) / duracion, 1);
@@ -60,14 +55,12 @@ function ContadorAnimado({ valor, duracion = 1500 }: { valor: number; duracion?:
         setDisplay(valor);
       }
     };
-
     frame = requestAnimationFrame(paso);
     return () => cancelAnimationFrame(frame);
   }, [valor, duracion]);
 
   return <>{display.toLocaleString("es-ES")}</>;
 }
-
 /* ---------- Tipos ---------- */
 interface ExplorarItem {
   id: string;
@@ -81,12 +74,16 @@ interface ExplorarItem {
   disabled?: boolean;
 }
 
+interface RecuerdoAlbum {
+  id: string;
+  image_path: string | null;
+  descripcion: string | null;
+}
+
 function Inicio() {
   const fechaInicio = new Date("2022-05-22"); // 22 de mayo del 2022
   const hoy = new Date();
-
   const diasJuntos = diasEntre(fechaInicio, hoy);
-
   const mensajes = [
     "Gracias por ser mi persona favorita ❤️",
     "Cada día contigo es un nuevo recuerdo ✨",
@@ -99,18 +96,56 @@ function Inicio() {
     "Tú y yo, siempre 🫂",
     "El amor contigo se siente fácil y bonito 🌸",
   ];
-
-  const recuerdos = [
-    "Nuestro primer paseo juntos ❤️",
-    "Ese día que no dejamos de reír 😂",
-    "Nuestro primer abrazo 🥹",
-    "La primera foto que nos tomamos 📸",
-  ];
-
-  // Mensaje y recuerdo "del día": cambian una vez al día, no en cada render
+  // Mensaje "del día": cambia una vez al día, no en cada render
   const indiceDelDia = diaDelAnio(hoy);
   const mensaje = mensajes[indiceDelDia % mensajes.length];
-  const recuerdo = recuerdos[indiceDelDia % recuerdos.length];
+
+  /* ---------- Recuerdo aleatorio (desde Supabase) ---------- */
+  const [recuerdo, setRecuerdo] = useState<RecuerdoAlbum | null>(null);
+  const [recuerdoUrl, setRecuerdoUrl] = useState<string | null>(null);
+  const [cargandoRecuerdo, setCargandoRecuerdo] = useState(true);
+
+  useEffect(() => {
+    let activo = true;
+
+    const cargarRecuerdoAleatorio = async () => {
+      setCargandoRecuerdo(true);
+
+      const { data, error } = await supabase
+        .from("album")
+        .select("id, image_path, descripcion");
+
+      if (!activo) return;
+
+      if (error || !data || data.length === 0) {
+        console.error("Error cargando recuerdo:", error);
+        setCargandoRecuerdo(false);
+        return;
+      }
+
+      // Elige cualquier fila al azar en cada carga de la página
+      const indiceAleatorio = Math.floor(Math.random() * data.length);
+      const elegido = data[indiceAleatorio] as RecuerdoAlbum;
+      setRecuerdo(elegido);
+
+      if (elegido.image_path) {
+        const { data: publicUrlData } = supabase.storage
+          .from("fotos")
+          .getPublicUrl(elegido.image_path);
+        setRecuerdoUrl(publicUrlData?.publicUrl ?? null);
+      } else {
+        setRecuerdoUrl(null);
+      }
+
+      setCargandoRecuerdo(false);
+    };
+
+    cargarRecuerdoAleatorio();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // Próximas fechas con contador dinámico
   const proximasFechas = [
@@ -133,7 +168,6 @@ function Inicio() {
       dias: diasHastaProximo(3, 17),
     },
   ];
-
   const explorarItems: ExplorarItem[] = [
     {
       id: "juegos",
@@ -178,11 +212,9 @@ function Inicio() {
       disabled: true,
     },
   ];
-
   return (
     <div className="min-h-screen bg-[#1B1033] text-white px-4 sm:px-6 md:px-8 pb-10">
       <div className="max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
-
         {/* Saludo */}
         <section className="pt-5 flex items-start justify-between gap-3">
           <div>
@@ -204,7 +236,6 @@ function Inicio() {
             </div>
           </Link>
         </section>
-
         {/* Banner */}
         <section className="mt-6">
           <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-orange-400 shadow-xl">
@@ -228,7 +259,6 @@ function Inicio() {
             </Link>
           </div>
         </section>
-
         {/* Contador */}
         <section className="mt-6">
           <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
@@ -248,7 +278,6 @@ function Inicio() {
             </div>
           </div>
         </section>
-
         {/* Mensaje */}
         <section className="mt-5">
           <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
@@ -263,22 +292,40 @@ function Inicio() {
             </p>
           </div>
         </section>
-
-        {/* Recuerdo */}
+        {/* Recuerdo (aleatorio, desde Supabase) */}
         <section className="mt-5">
-          <div className="rounded-3xl p-4 sm:p-5 bg-gradient-to-r from-purple-700 to-pink-700">
-            <div className="flex items-center gap-3">
+          <div className="rounded-3xl overflow-hidden bg-gradient-to-r from-purple-700 to-pink-700">
+            <div className="flex items-center gap-3 p-4 sm:p-5 pb-0">
               <Camera className="text-white" />
               <h3 className="font-bold text-lg sm:text-xl">
                 Recuerdo del día
               </h3>
             </div>
-            <p className="mt-4 text-white/90 text-sm sm:text-base">
-              {recuerdo}
-            </p>
+
+            {cargandoRecuerdo ? (
+              <p className="mt-4 text-white/80 text-sm sm:text-base p-4 sm:p-5 pt-2">
+                Cargando recuerdo...
+              </p>
+            ) : recuerdo ? (
+              <>
+                {recuerdoUrl && (
+                  <img
+                    src={recuerdoUrl}
+                    alt={recuerdo.descripcion || "Recuerdo"}
+                    className="w-full h-48 sm:h-56 object-cover mt-4"
+                  />
+                )}
+                <p className="text-white/90 text-sm sm:text-base p-4 sm:p-5 pt-3">
+                  {recuerdo.descripcion || "Un recuerdo especial ❤️"}
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 text-white/80 text-sm sm:text-base p-4 sm:p-5 pt-2">
+                Aún no hay recuerdos guardados en el álbum.
+              </p>
+            )}
           </div>
         </section>
-
         {/* Explorar — Carrusel de cuadraditos */}
         <section className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
@@ -286,7 +333,6 @@ function Inicio() {
           </h2>
           <ExplorarCarrusel items={explorarItems} />
         </section>
-
         {/* Nuestra aventura */}
         <section className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
@@ -313,7 +359,6 @@ function Inicio() {
             </div>
           </div>
         </section>
-
         {/* Acciones rápidas */}
         <section className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
@@ -334,7 +379,6 @@ function Inicio() {
             </button>
           </div>
         </section>
-
         {/* Próximas fechas */}
         <section className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
@@ -371,7 +415,6 @@ function Inicio() {
     </div>
   );
 }
-
 /* ---------- Carrusel de Explorar (cuadraditos, varias tarjetas visibles) ---------- */
 function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -380,7 +423,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
   const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPointerDown = useRef(false);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const getStep = () => {
     const track = trackRef.current;
     if (!track || !track.children[0]) return 0;
@@ -389,7 +431,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     const gap = parseFloat(style.columnGap || style.gap || "0");
     return card.offsetWidth + gap;
   };
-
   const scrollToIndex = (i: number) => {
     const track = trackRef.current;
     if (!track) return;
@@ -397,7 +438,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     track.scrollTo({ left: getStep() * clamped, behavior: "smooth" });
     setActiveIndex(clamped);
   };
-
   // Auto-avance
   useEffect(() => {
     const id = setInterval(() => {
@@ -411,7 +451,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     }, 3200);
     return () => clearInterval(id);
   }, [activeIndex, items.length]);
-
   const pauseTemporarily = () => {
     pausedRef.current = true;
     if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
@@ -419,7 +458,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
       pausedRef.current = false;
     }, 4500);
   };
-
   // Detecta en qué tarjeta quedó al terminar de deslizar (scroll nativo)
   const handleScrollEnd = () => {
     const track = trackRef.current;
@@ -429,20 +467,17 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     const nearest = Math.round(track.scrollLeft / step);
     setActiveIndex(Math.max(0, Math.min(nearest, items.length - 1)));
   };
-
   const onScroll = () => {
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(handleScrollEnd, 100);
   };
-
   return (
     <div>
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-
-      <div
+    <div
         ref={trackRef}
         onScroll={onScroll}
         onPointerDown={() => {
@@ -486,7 +521,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
               )}
             </div>
           );
-
           return (
             <div
               key={item.id}
@@ -497,7 +531,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
           );
         })}
       </div>
-
       {/* Puntos indicadores */}
       <div className="flex justify-center gap-2 mt-3">
         {items.map((item, i) => (
@@ -517,5 +550,4 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     </div>
   );
 }
-
 export default Inicio;

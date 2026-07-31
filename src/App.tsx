@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 //////////////////// COMPONENTES //////////////////////
@@ -9,6 +10,7 @@ import Timeline from "./conponents/timeline";
 import Album from "./conponents/album";
 import Perfil from "./conponents/perfil";
 import Cartas from "./conponents/cartas";
+import LoadingScreen from "./conponents/loading";
 
 //////////////////// PAGES //////////////////////
 
@@ -53,6 +55,14 @@ function AppContent() {
 }
 
 function App() {
+  const [loading, setLoading] = useState(true);
+
+  if (loading) {
+    return (
+      <LoadingScreen onFinish={() => setLoading(false)} soundEnabled />
+    );
+  }
+
   return (
     <BrowserRouter>
       <AppContent />

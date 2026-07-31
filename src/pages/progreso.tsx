@@ -69,10 +69,10 @@ function Progreso() {
   ];
 
   const categorias = [
-    { nombre: "Romántico", progreso: 80, color: "bg-pink-500" },
-    { nombre: "Complicidad", progreso: 55, color: "bg-yellow-400" },
-    { nombre: "Retos", progreso: 40, color: "bg-orange-400" },
-    { nombre: "Preguntas", progreso: 70, color: "bg-fuchsia-500" },
+    { nombre: "Romántico", progreso: 80, color: "bg-[#EC4899]" },
+    { nombre: "Complicidad", progreso: 55, color: "bg-[#FACC15]" },
+    { nombre: "Retos", progreso: 40, color: "bg-[#FB923C]" },
+    { nombre: "Preguntas", progreso: 70, color: "bg-[#D946EF]" },
   ];
 
   const handleLogroClick = (titulo: string) => {
@@ -84,10 +84,10 @@ function Progreso() {
   };
 
   return (
-    <section className="px-4 sm:px-6 py-6 sm:py-10">
+    <section className="px-4 sm:px-6 py-6 sm:py-10 bg-[#1B1033]">
       <div className="text-center mb-8 sm:mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold">📊 Progreso</h1>
-        <p className="text-gray-300 mt-3 text-sm sm:text-base">
+        <h1 className="text-3xl sm:text-4xl font-bold text-white">📊 Progreso</h1>
+        <p className="text-[#B8B5C9] mt-3 text-sm sm:text-base">
           Mira todos los logros que han conseguido
         </p>
       </div>
@@ -99,13 +99,13 @@ function Progreso() {
           {estadisticas.map((stat, i) => (
             <div
               key={i}
-              className="bg-white/10 backdrop-blur rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-center"
+              className="bg-[#2A1847] border border-[#47356B] rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-center"
             >
               <div className="text-2xl sm:text-3xl">{stat.icono}</div>
-              <p className="text-xl sm:text-2xl font-bold text-pink-400 mt-2">
+              <p className="text-xl sm:text-2xl font-bold text-[#EC4899] mt-2">
                 {stat.valor}
               </p>
-              <p className="text-gray-400 text-xs sm:text-sm mt-1">
+              <p className="text-[#B8B5C9] text-xs sm:text-sm mt-1">
                 {stat.label}
               </p>
             </div>
@@ -113,37 +113,37 @@ function Progreso() {
         </div>
 
         {/* Nivel de pareja */}
-        <div className="bg-white/10 backdrop-blur rounded-3xl p-5 sm:p-6 mb-6 sm:mb-8">
+        <div className="bg-[#2A1847] border border-[#47356B] rounded-3xl p-5 sm:p-6 mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold">Nivel de pareja ❤️</h2>
-            <span className="flex items-center gap-1 text-orange-400 text-sm font-semibold">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Nivel de pareja ❤️</h2>
+            <span className="flex items-center gap-1 text-[#FB923C] text-sm font-semibold">
               <Flame size={16} /> Racha 3
             </span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-5">
+          <div className="w-full bg-[#1B1033] border border-[#47356B] rounded-full h-5">
             <div
-              className="bg-gradient-to-r from-pink-500 to-orange-400 h-5 rounded-full transition-all"
+              className="bg-gradient-to-r from-[#EC4899] to-[#FB923C] h-5 rounded-full transition-all"
               style={{ width: "65%" }}
             />
           </div>
-          <p className="mt-3 text-gray-300 text-sm sm:text-base">
+          <p className="mt-3 text-[#B8B5C9] text-sm sm:text-base">
             65% completado - ¡Sigan creando recuerdos!
           </p>
         </div>
 
         {/* Progreso por categoría */}
-        <div className="bg-white/10 backdrop-blur rounded-3xl p-5 sm:p-6 mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-5">
+        <div className="bg-[#2A1847] border border-[#47356B] rounded-3xl p-5 sm:p-6 mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-5 text-white">
             Progreso por categoría
           </h2>
           <div className="space-y-4">
             {categorias.map((cat, i) => (
               <div key={i}>
                 <div className="flex items-center justify-between mb-1.5 text-sm sm:text-base">
-                  <span className="font-medium">{cat.nombre}</span>
-                  <span className="text-gray-400">{cat.progreso}%</span>
+                  <span className="font-medium text-white">{cat.nombre}</span>
+                  <span className="text-[#B8B5C9]">{cat.progreso}%</span>
                 </div>
-                <div className="w-full bg-gray-700/60 rounded-full h-2.5">
+                <div className="w-full bg-[#1B1033] border border-[#47356B] rounded-full h-2.5">
                   <div
                     className={`${cat.color} h-2.5 rounded-full transition-all`}
                     style={{ width: `${cat.progreso}%` }}
@@ -156,8 +156,8 @@ function Progreso() {
 
         {/* Logros */}
         <div className="mb-2">
-          <h2 className="text-xl sm:text-2xl font-bold mb-5 flex items-center gap-2">
-            <Trophy className="text-yellow-400" size={22} /> Logros
+          <h2 className="text-xl sm:text-2xl font-bold mb-5 flex items-center gap-2 text-white">
+            <Trophy className="text-[#FACC15]" size={22} /> Logros
           </h2>
 
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
@@ -172,20 +172,20 @@ function Progreso() {
                   onClick={
                     esClickeable ? () => handleLogroClick(logro.titulo) : undefined
                   }
-                  className={`relative p-5 sm:p-6 rounded-3xl text-center transition ${
+                  className={`relative p-5 sm:p-6 rounded-3xl text-center transition border border-[#47356B] ${
                     logro.conseguido
-                      ? "bg-white/10 hover:scale-105"
-                      : "bg-white/5 opacity-60"
+                      ? "bg-[#2A1847] hover:bg-[#352257] hover:scale-105"
+                      : "bg-[#2A1847]/50 opacity-60"
                   } ${esClickeable ? "cursor-pointer" : ""}`}
                 >
                   {!logro.conseguido && (
-                    <span className="absolute top-4 right-4 text-gray-400">
+                    <span className="absolute top-4 right-4 text-[#B8B5C9]">
                       <Lock size={16} />
                     </span>
                   )}
                   <div className="text-4xl sm:text-5xl mb-3">{logro.icono}</div>
-                  <h3 className="font-bold text-lg sm:text-xl">{logro.titulo}</h3>
-                  <p className="text-gray-300 mt-2 text-xs sm:text-sm">
+                  <h3 className="font-bold text-lg sm:text-xl text-white">{logro.titulo}</h3>
+                  <p className="text-[#B8B5C9] mt-2 text-xs sm:text-sm">
                     {logro.descripcion}
                   </p>
                 </div>

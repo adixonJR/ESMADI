@@ -578,34 +578,85 @@ function Album() {
       {/* ---------- Animacion del libro que se abre ---------- */}
       {fase !== "listo" && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#241539]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1B1033]"
           style={{ perspective: "1800px" }}
         >
-          <div className="absolute w-1 h-2/3 bg-pink-500/30 rounded-full" />
-
+          {/* Lomo del libro (encuadernación), simulando el canto de las páginas */}
           <div
-            className="absolute w-1/2 h-2/3 right-1/2 bg-gradient-to-br from-[#3a2159] to-[#241539] rounded-l-2xl border-r border-pink-500/20 shadow-2xl flex items-center justify-end pr-6"
+            className="absolute w-3 h-2/3 rounded-sm"
             style={{
+              background:
+                "repeating-linear-gradient(90deg, #1B1033 0px, #1B1033 2px, #2A1847 2px, #2A1847 4px)",
+              boxShadow: "0 0 14px rgba(0,0,0,0.6)",
+            }}
+          />
+
+          {/* Sombra de pliegue que aparece al centro cuando se abre */}
+          <div
+            className="absolute w-14 h-2/3 left-1/2 -translate-x-1/2 pointer-events-none z-10"
+            style={{
+              background: "linear-gradient(90deg, rgba(0,0,0,0.4), transparent 70%)",
+              opacity: abriendo ? 1 : 0,
+              transition: "opacity 700ms ease-out",
+            }}
+          />
+
+          {/* Tapa izquierda */}
+          <div
+            className="absolute w-1/2 h-2/3 right-1/2 rounded-l-2xl border-r border-[#47356B] shadow-2xl flex items-center justify-end pr-7 overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #352257 0%, #1B1033 100%)",
               transformOrigin: "right center",
               transformStyle: "preserve-3d",
               transform: abriendo ? "rotateY(-115deg)" : "rotateY(0deg)",
               transition: "transform 1000ms cubic-bezier(0.65, 0, 0.35, 1)",
             }}
           >
-            <Heart size={40} className="text-pink-400 fill-pink-400 opacity-70" />
+            {/* Filo de páginas visible en el borde exterior */}
+            <div className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b from-[#F5EFE0] via-[#E8E0CC] to-[#F5EFE0] opacity-90" />
+            <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#B8B5C9]/30" />
+
+            {/* Marco decorativo tipo cubierta */}
+            <div className="absolute inset-3 border border-[#FACC15]/25 rounded-xl pointer-events-none" />
+
+            <Heart
+              size={38}
+              className="text-[#EC4899] fill-[#EC4899] opacity-85"
+              style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+            />
           </div>
 
+          {/* Tapa derecha */}
           <div
-            className="absolute w-1/2 h-2/3 left-1/2 bg-gradient-to-bl from-[#3a2159] to-[#241539] rounded-r-2xl border-l border-pink-500/20 shadow-2xl flex flex-col items-start justify-center pl-6"
+            className="absolute w-1/2 h-2/3 left-1/2 rounded-r-2xl border-l border-[#47356B] shadow-2xl flex flex-col items-start justify-center pl-7 overflow-hidden"
             style={{
+              background: "linear-gradient(225deg, #352257 0%, #1B1033 100%)",
               transformOrigin: "left center",
               transformStyle: "preserve-3d",
               transform: abriendo ? "rotateY(115deg)" : "rotateY(0deg)",
               transition: "transform 1000ms cubic-bezier(0.65, 0, 0.35, 1)",
             }}
           >
-            <h2 className="text-xl font-bold text-white">Nuestro</h2>
-            <h2 className="text-xl font-bold text-pink-400">Album</h2>
+            {/* Filo de páginas visible en el borde exterior */}
+            <div className="absolute right-1.5 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b from-[#F5EFE0] via-[#E8E0CC] to-[#F5EFE0] opacity-90" />
+            <div className="absolute right-3.5 top-4 bottom-4 w-px bg-[#B8B5C9]/30" />
+
+            {/* Marco decorativo tipo cubierta */}
+            <div className="absolute inset-3 border border-[#FACC15]/25 rounded-xl pointer-events-none" />
+
+            <h2
+              className="text-2xl font-bold text-white tracking-wide"
+              style={{ textShadow: "0 2px 6px rgba(0,0,0,0.5)" }}
+            >
+              Nuestro
+            </h2>
+            <h2
+              className="text-2xl font-bold text-[#EC4899] tracking-wide"
+              style={{ textShadow: "0 2px 6px rgba(0,0,0,0.5)" }}
+            >
+              Álbum
+            </h2>
+            <div className="w-10 h-px bg-[#FACC15]/60 mt-3" />
           </div>
         </div>
       )}

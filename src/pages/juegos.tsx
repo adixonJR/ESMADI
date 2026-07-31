@@ -9,7 +9,7 @@ function Juegos() {
       nombre: "Chispa",
       descripcion: "Cartas y retos para subir la temperatura, a su ritmo.",
       icono: "🎲",
-      color: "from-pink-500 to-red-500",
+      color: "from-[#EC4899] to-[#FB923C]",
       disponible: true,
     },
     {
@@ -19,7 +19,7 @@ function Juegos() {
       nombre: "Memoria",
       descripcion: "Encuentra las parejas y demuestra tu memoria.",
       icono: "🧠",
-      color: "from-purple-500 to-indigo-500",
+      color: "from-[#D946EF] to-[#EC4899]",
       disponible: false,
     },
     {
@@ -29,7 +29,7 @@ function Juegos() {
       nombre: "Retos",
       descripcion: "Completa retos divertidos juntos.",
       icono: "🎯",
-      color: "from-yellow-500 to-orange-500",
+      color: "from-[#FACC15] to-[#FB923C]",
       disponible: false,
     },
     {
@@ -39,23 +39,23 @@ function Juegos() {
       nombre: "Quiz de Pareja",
       descripcion: "Descubre qué tanto conocen sus gustos.",
       icono: "💑",
-      color: "from-blue-500 to-cyan-500",
+      color: "from-[#D946EF] to-[#47356B]",
       disponible: false,
     },
   ];
 
   return (
-    <section className="px-4 sm:px-6 py-6 max-w-md sm:max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-yellow-300 mb-6">Todos los juegos</h1>
+    <section className="px-4 sm:px-6 py-6 max-w-md sm:max-w-lg mx-auto bg-[#1B1033]">
+      <h1 className="text-xl font-bold text-[#FACC15] mb-6">Todos los juegos</h1>
 
       <div className="space-y-4">
         {juegos.map((juego) => (
           <div
             key={juego.id}
-            className="bg-[#241539] border border-white/10 rounded-3xl p-5 relative"
+            className="bg-[#2A1847] border border-[#47356B] rounded-3xl p-5 relative"
           >
             {!juego.disponible && (
-              <span className="absolute top-4 right-4 text-yellow-500">🔒</span>
+              <span className="absolute top-4 right-4 text-[#FACC15]">🔒</span>
             )}
 
             <div
@@ -64,20 +64,20 @@ function Juegos() {
               {juego.icono}
             </div>
 
-            <h2 className="font-bold text-base">{juego.nombre}</h2>
-            <p className="text-gray-400 text-sm mt-1">{juego.descripcion}</p>
+            <h2 className="font-bold text-base text-white">{juego.nombre}</h2>
+            <p className="text-[#B8B5C9] text-sm mt-1">{juego.descripcion}</p>
 
             {juego.disponible && juego.to ? (
               <Link
                 to={juego.to}
-                className="mt-4 block w-full text-center rounded-xl py-2.5 text-sm font-bold bg-gradient-to-r from-pink-500 to-orange-400 text-white"
+                className="mt-4 block w-full text-center rounded-xl py-2.5 text-sm font-bold bg-gradient-to-r from-[#EC4899] to-[#FB923C] text-white"
               >
                 Jugar Ahora
               </Link>
             ) : (
               <button
                 disabled
-                className="mt-4 w-full rounded-xl py-2.5 text-sm font-bold bg-[#3D2B61] text-gray-500 cursor-not-allowed"
+                className="mt-4 w-full rounded-xl py-2.5 text-sm font-bold bg-[#352257] text-[#B8B5C9] cursor-not-allowed"
               >
                 Próximamente
               </button>
@@ -86,7 +86,7 @@ function Juegos() {
         ))}
       </div>
 
-      <p className="text-center text-[11px] text-gray-500 mt-8 italic">
+      <p className="text-center text-[11px] text-[#B8B5C9] mt-8 italic">
         Juega con respeto, comunicación y consentimiento mutuo 🤎
       </p>
     </section>
