@@ -13,6 +13,8 @@ import {
   PartyPopper,
   Camera,
   Gem,
+  Music,
+  Hourglass,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -259,6 +261,46 @@ function Nosotros() {
               </h2>
               <p className="text-[#C7C7D3] text-sm sm:text-base">
                 Escribe mensajes especiales
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Playlist */}
+        <Link
+          to="/playlist"
+          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#B388FF]/50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="border border-[#B388FF]/40 rounded-full p-3">
+              <Music size={30} className="text-[#B388FF]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+                Playlist
+              </h2>
+              <p className="text-[#C7C7D3] text-sm sm:text-base">
+                Las canciones de nuestra historia
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Cápsula del tiempo */}
+        <Link
+          to="/capsula-del-tiempo"
+          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#FF7EB6]/50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="border border-[#FF7EB6]/40 rounded-full p-3">
+              <Hourglass size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+                Cápsula del tiempo
+              </h2>
+              <p className="text-[#C7C7D3] text-sm sm:text-base">
+                Mensajes para abrir en el futuro
               </p>
             </div>
           </div>

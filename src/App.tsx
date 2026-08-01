@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
+
 //////////////////// COMPONENTES //////////////////////
 
 import Navbar from "./conponents/navbar";
@@ -11,6 +12,8 @@ import Album from "./conponents/album";
 import Perfil from "./conponents/perfil";
 import Cartas from "./conponents/cartas";
 import LoadingScreen from "./conponents/loading";
+import Playlist from "./conponents/Playlist";
+import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 
 //////////////////// PAGES //////////////////////
 
@@ -19,6 +22,7 @@ import Juegos from "./pages/juegos";
 import Chispa from "./pages/chispa";
 import Progreso from "./pages/progreso";
 import Nosotros from "./pages/nosotros";
+import Fechas from "./pages/fechas";
 
 function AppContent() {
   const location = useLocation();
@@ -46,6 +50,9 @@ function AppContent() {
           <Route path="/album" element={<Album />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/cartas" element={<Cartas />} />
+          <Route path="/playlist" element={<Playlist />} />
+          <Route path="/capsula-del-tiempo" element={<CapsulaDelTiempo />} />
+          <Route path="/fechas" element={<Fechas />} />
         </Routes>
       </main>
 
