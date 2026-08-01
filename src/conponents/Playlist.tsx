@@ -45,6 +45,25 @@ function obtenerPortada(youtubeId: string | null): string | null {
   return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
 }
 
+// Hook simple para saber si estamos en viewport mobile (< breakpoint sm de Tailwind, 640px)
+function useEsMobile(breakpointPx = 640): boolean {
+  const [esMobile, setEsMobile] = useState<boolean>(
+    typeof window !== "undefined" ? window.innerWidth < breakpointPx : false
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpointPx - 1}px)`);
+    const actualizar = (e: MediaQueryListEvent | MediaQueryList) =>
+      setEsMobile(e.matches);
+
+    actualizar(mediaQuery);
+    mediaQuery.addEventListener("change", actualizar);
+    return () => mediaQuery.removeEventListener("change", actualizar);
+  }, [breakpointPx]);
+
+  return esMobile;
+}
+
 function Playlist() {
   const [canciones, setCanciones] = useState<Cancion[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -57,6 +76,8 @@ function Playlist() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [reproduciendoId, setReproduciendoId] = useState<string | null>(null);
+
+  const esMobile = useEsMobile();
 
   const cancionActual = canciones.find((c) => c.id === reproduciendoId) || null;
 
@@ -375,7 +396,7 @@ function Playlist() {
         )}
       </div>
 
-      {/* Reproductor flotante estilo Spotify */}
+      {/* Reproductor flotante estilo Spotify — un solo iframe, tamaño según viewport */}
       {cancionActual && cancionActual.youtube_id && (
         <div className="fixed bottom-20 sm:bottom-24 left-0 right-0 bg-[#1E1534] border border-[#453A67] rounded-2xl mx-4 sm:mx-6 px-4 sm:px-6 py-3 z-50 shadow-2xl shadow-black/40">
           <div className="max-w-3xl mx-auto flex items-center gap-4">
@@ -390,7 +411,33 @@ function Playlist() {
               </p>
               <p className="text-[#B388FF] text-xs truncate">{cancionActual.artista}</p>
             </div>
-            <div className="hidden sm:block w-40 h-[70px] rounded-lg overflow-hidden shrink-0 border border-[#453A67]">
+
+            {/* Reproductor compacto: visible solo en desktop, al costado */}
+            {!esMobile && (
+              <div className="w-40 h-[70px] rounded-lg overflow-hidden shrink-0 border border-[#453A67]">
+                <iframe
+                  key={cancionActual.id}
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${cancionActual.youtube_id}?autoplay=1`}
+                  title={cancionActual.titulo}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+
+            <button
+              onClick={() => setReproduciendoId(null)}
+              className="text-[#8A83A0] hover:text-white transition shrink-0"
+              aria-label="Cerrar reproductor"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Reproductor grande: visible solo en móvil, debajo de la barra */}
+          {esMobile && (
+            <div className="mt-3 max-w-3xl mx-auto rounded-xl overflow-hidden border border-[#453A67] aspect-video">
               <iframe
                 key={cancionActual.id}
                 className="w-full h-full"
@@ -400,25 +447,7 @@ function Playlist() {
                 allowFullScreen
               />
             </div>
-            <button
-              onClick={() => setReproduciendoId(null)}
-              className="text-[#8A83A0] hover:text-white transition shrink-0"
-              aria-label="Cerrar reproductor"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          {/* Reproductor visible en móvil, debajo de la barra */}
-          <div className="sm:hidden mt-3 max-w-3xl mx-auto rounded-xl overflow-hidden border border-[#453A67] aspect-video">
-            <iframe
-              key={`mobile-${cancionActual.id}`}
-              className="w-full h-full"
-              src={`https://www.youtube.com/embed/${cancionActual.youtube_id}?autoplay=1`}
-              title={cancionActual.titulo}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+          )}
         </div>
       )}
     </section>
