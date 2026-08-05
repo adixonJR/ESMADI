@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 const sorpresas = [
   {
@@ -49,6 +50,33 @@ const eventos = [
 export default function Fechas() {
   const navigate = useNavigate();
 
+  // Envía una notificación local de prueba, para confirmar que las
+  // notificaciones funcionan y avisar que ya pueden descargar/probar la app.
+  const enviarNotificacionDePrueba = async () => {
+    try {
+      const permiso = await LocalNotifications.requestPermissions();
+
+      if (permiso.display !== "granted") {
+        alert("Necesito permiso de notificaciones para enviarte el mensaje 💌");
+        return;
+      }
+
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Date.now(),
+            title: "¡Descarga la app! 💕",
+            body: "Ya puedes probar la app, toca aquí para abrirla.",
+            schedule: { at: new Date(Date.now() + 2000) }, // llega en 2 segundos
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Error al enviar la notificación:", error);
+      alert("No se pudo enviar la notificación. Revisa la consola para más detalles.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#1B1033] text-white px-5 pt-24 pb-28">
       <style>{`
@@ -92,8 +120,19 @@ export default function Fechas() {
         .sorpresa-card:hover .sorpresa-flecha {
           transform: translateX(3px);
         }
+        .notificacion-boton {
+          animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .notificacion-boton:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 26px -10px rgba(236, 72, 153, 0.5);
+        }
+        .notificacion-boton:active {
+          transform: scale(0.98);
+        }
         @media (prefers-reduced-motion: reduce) {
-          .fecha-header, .fecha-card, .sorpresa-titulo, .sorpresa-card, .sorpresa-flecha {
+          .fecha-header, .fecha-card, .sorpresa-titulo, .sorpresa-card, .sorpresa-flecha, .notificacion-boton {
             animation: none !important;
             transition: none !important;
           }
@@ -109,6 +148,21 @@ export default function Fechas() {
           Nunca olvidemos nuestros momentos más importantes ❤️
         </p>
       </div>
+
+      {/* BOTÓN DE PRUEBA DE NOTIFICACIÓN */}
+      <button
+        onClick={enviarNotificacionDePrueba}
+        style={{ animationDelay: "80ms" }}
+        className="notificacion-boton w-full mb-10 bg-gradient-to-r from-pink-500 to-fuchsia-600 rounded-3xl p-5 shadow-lg flex items-center justify-between"
+      >
+        <div className="text-left">
+          <h2 className="text-lg font-bold">📲 Probar notificación</h2>
+          <p className="text-white/80 text-sm mt-1">
+            Toca para enviarte un mensaje de prueba
+          </p>
+        </div>
+        <span className="text-2xl">💌</span>
+      </button>
 
       <div className="space-y-5 mb-12">
         {eventos.map((evento, index) => (

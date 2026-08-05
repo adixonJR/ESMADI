@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-
 
 //////////////////// COMPONENTES //////////////////////
 
@@ -17,10 +16,14 @@ import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 import Floo from "./conponents/floo";
 import AgregarMomento from "./conponents/AgregarMomento";
 
+//////////////////// NOTIFICACIONES //////////////////////
+
+import { pedirPermisoNotificaciones } from "./utils/notificaciones";
+
 //////////////////// FECHAS //////////////////////
 
 import SanValentin from "./fechas/SanValentin";
-import Aniversario from "./fechas/Aniversario"
+import Aniversario from "./fechas/Aniversario";
 
 //////////////////// PAGES //////////////////////
 
@@ -63,9 +66,7 @@ function AppContent() {
           <Route path="/SanValentin" element={<SanValentin />} />
           <Route path="/Aniversario" element={<Aniversario />} />
           <Route path="/floo" element={<Floo />} />
-          <Route path="/AgregarMomento" element={<AgregarMomento/>} />
-          
-          
+          <Route path="/AgregarMomento" element={<AgregarMomento />} />
         </Routes>
       </main>
 
@@ -77,9 +78,17 @@ function AppContent() {
 function App() {
   const [loading, setLoading] = useState(true);
 
+  // Solicita permiso para enviar notificaciones
+  useEffect(() => {
+    pedirPermisoNotificaciones();
+  }, []);
+
   if (loading) {
     return (
-      <LoadingScreen onFinish={() => setLoading(false)} soundEnabled />
+      <LoadingScreen
+        onFinish={() => setLoading(false)}
+        soundEnabled
+      />
     );
   }
 
