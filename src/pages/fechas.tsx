@@ -61,6 +61,8 @@ export default function Fechas() {
         return;
       }
 
+      console.log("Intentando programar notificación...");
+
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -71,6 +73,8 @@ export default function Fechas() {
           },
         ],
       });
+
+      console.log("Notificación programada con éxito");
     } catch (error) {
       console.error("Error al enviar la notificación:", error);
       alert("No se pudo enviar la notificación. Revisa la consola para más detalles.");
