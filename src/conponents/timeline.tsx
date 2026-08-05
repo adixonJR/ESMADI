@@ -1,82 +1,46 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Heart } from "lucide-react";
-
-type Momento = {
-  icono: string;
-  titulo: string;
-  descripcion: string;
-  fecha: string;
-  imagen?: string; // reemplaza con la URL de tu propia foto
-};
-
-const MOMENTOS: Momento[] = [
-  {
-    icono: "📅",
-    titulo: "Nos conocimos",
-    descripcion:
-      "Fue en una fiesta de un amigo en común, casi no vamos ninguno de los dos.",
-    fecha: "10 Enero 2024",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+1",
-  },
-  {
-    icono: "💬",
-    titulo: "Primera conversación",
-    descripcion:
-      "Empezamos a hablar por chat esa misma noche y no paramos hasta las 3am.",
-    fecha: "10 Enero 2024",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+2",
-  },
-  {
-    icono: "☕",
-    titulo: "Primera cita",
-    descripcion:
-      "Un café que se convirtió en 4 horas de conversación sin darnos cuenta.",
-    fecha: "2 Febrero 2024",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+3",
-  },
-  {
-    icono: "❤️",
-    titulo: "Nos hicimos pareja",
-    descripcion: "En el parque, bajo la lluvia, justo como en las películas.",
-    fecha: "15 Marzo 2024",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+4",
-  },
-  {
-    icono: "🎉",
-    titulo: "Primer aniversario",
-    descripcion:
-      "Celebramos con una cena sorpresa y una carta que hizo llorar a los dos.",
-    fecha: "15 Marzo 2025",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+5",
-  },
-  {
-    icono: "📸",
-    titulo: "Momentos especiales",
-    descripcion:
-      "Viajes, risas, discusiones tontas y muchas fotos que guardamos con cariño.",
-    fecha: "Todo el año",
-    imagen: "https://placehold.co/600x400/241539/f472b6?text=Foto+6",
-  },
-  {
-    icono: "💍",
-    titulo: "Futuro juntos",
-    descripcion:
-      "Lo que sigue está por escribirse, y no podríamos estar más emocionados.",
-    fecha: "Por vivir",
-  },
-];
+import { ArrowLeft, Heart, Loader2, Plus } from "lucide-react";
+import supabase from "../lib/supabase.js";
+import type { Momento } from "../lib/tipos";
 
 function Timeline() {
-  const [visibles, setVisibles] = useState<boolean[]>(() =>
-    MOMENTOS.map(() => false)
-  );
+  const [momentos, setMomentos] = useState<Momento[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [visibles, setVisibles] = useState<boolean[]>([]);
   const refs = useRef<(HTMLDivElement | null)[]>([]);
   const contenedorRef = useRef<HTMLDivElement | null>(null);
-  const [progreso, setProgreso] = useState(0); // 0 a 1, avance de la línea general
+  const [progreso, setProgreso] = useState(0);
+
+  // Trae los momentos desde Supabase
+  useEffect(() => {
+    const cargarMomentos = async () => {
+      setCargando(true);
+      const { data, error } = await supabase
+        .from("momentos")
+        .select("*")
+        .order("orden", { ascending: true })
+        .order("fecha_orden", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMomentos(data ?? []);
+        setVisibles((data ?? []).map(() => false));
+      }
+      setCargando(false);
+    };
+
+    cargarMomentos();
+  }, []);
 
   // Revelado de cada tarjeta al entrar en pantalla
   useEffect(() => {
+    if (momentos.length === 0) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -97,7 +61,7 @@ function Timeline() {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [momentos]);
 
   // Línea de progreso continua según el scroll dentro del contenedor de la timeline
   useEffect(() => {
@@ -109,8 +73,6 @@ function Timeline() {
       const rect = el.getBoundingClientRect();
       const alturaVentana = window.innerHeight;
 
-      // Empieza a llenarse cuando el top del contenedor entra en pantalla
-      // y termina de llenarse cuando el bottom del contenedor pasa el centro de pantalla
       const inicio = alturaVentana * 0.85;
       const fin = alturaVentana * 0.35;
 
@@ -136,7 +98,7 @@ function Timeline() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, []);
+  }, [momentos]);
 
   return (
     <div className="min-h-screen bg-[#1B1033] text-white pb-16">
@@ -148,10 +110,17 @@ function Timeline() {
         >
           <ArrowLeft size={20} />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-bold leading-tight">Nuestra línea del tiempo</h1>
           <p className="text-xs text-gray-400">Cada momento, un recuerdo</p>
         </div>
+        <Link
+          to="/AgregarMomento"
+          className="p-2 rounded-full bg-pink-500 hover:bg-pink-600 transition"
+          title="Agregar momento"
+        >
+          <Plus size={20} />
+        </Link>
       </div>
 
       <div className="text-center mt-8 mb-10 px-6">
@@ -166,97 +135,124 @@ function Timeline() {
         </p>
       </div>
 
+      {/* Estado de carga */}
+      {cargando && (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Loader2 className="animate-spin mb-3" size={28} />
+          <p className="text-sm">Cargando momentos...</p>
+        </div>
+      )}
+
+      {/* Estado de error */}
+      {!cargando && error && (
+        <div className="text-center py-20 px-6">
+          <p className="text-red-400 font-medium">No se pudieron cargar los momentos.</p>
+          <p className="text-gray-500 text-sm mt-1">{error}</p>
+        </div>
+      )}
+
+      {/* Estado vacío */}
+      {!cargando && !error && momentos.length === 0 && (
+        <div className="text-center py-20 px-6">
+          <p className="text-gray-400">Todavía no hay momentos guardados.</p>
+          <Link
+            to="/AgregarMomento"
+            className="inline-block mt-4 bg-pink-500 hover:bg-pink-600 transition rounded-full px-6 py-2.5 font-semibold text-sm"
+          >
+            Agregar el primer momento
+          </Link>
+        </div>
+      )}
+
       {/* Timeline con scroll */}
-      <div
-        ref={contenedorRef}
-        className="relative max-w-3xl mx-auto px-4 sm:px-6"
-      >
-        {/* Riel de fondo */}
-        <div className="absolute left-[27px] sm:left-1/2 top-0 bottom-0 w-1 bg-white/10 sm:-translate-x-1/2 rounded-full" />
-        {/* Riel de progreso */}
+      {!cargando && !error && momentos.length > 0 && (
         <div
-          className="absolute left-[27px] sm:left-1/2 top-0 w-1 bg-gradient-to-b from-pink-400 to-fuchsia-500 sm:-translate-x-1/2 rounded-full transition-[height] duration-150 ease-out"
-          style={{ height: `${progreso * 100}%` }}
-        />
+          ref={contenedorRef}
+          className="relative max-w-3xl mx-auto px-4 sm:px-6"
+        >
+          {/* Riel de fondo */}
+          <div className="absolute left-[27px] sm:left-1/2 top-0 bottom-0 w-1 bg-white/10 sm:-translate-x-1/2 rounded-full" />
+          {/* Riel de progreso */}
+          <div
+            className="absolute left-[27px] sm:left-1/2 top-0 w-1 bg-gradient-to-b from-pink-400 to-fuchsia-500 sm:-translate-x-1/2 rounded-full transition-[height] duration-150 ease-out"
+            style={{ height: `${progreso * 100}%` }}
+          />
 
-        <div className="relative space-y-10 sm:space-y-16 py-4">
-          {MOMENTOS.map((momento, index) => {
-            const visible = visibles[index];
-            const izquierda = index % 2 === 0;
+          <div className="relative space-y-10 sm:space-y-16 py-4">
+            {momentos.map((momento, index) => {
+              const visible = visibles[index];
+              const izquierda = index % 2 === 0;
 
-            return (
-              <div
-                key={index}
-                ref={(el) => { refs.current[index] = el; }}
-                data-index={index}
-                className={`relative flex items-start sm:items-center gap-4 sm:gap-8 ${
-                  izquierda ? "sm:flex-row" : "sm:flex-row-reverse"
-                }`}
-              >
-                {/* Punto en el riel */}
+              return (
                 <div
-                  className="absolute left-[13px] sm:left-1/2 top-1 sm:top-1/2 sm:-translate-y-1/2 sm:-translate-x-1/2 z-10 w-7 h-7 rounded-full bg-[#1B1033] border-2 border-pink-400 flex items-center justify-center text-sm transition-all duration-500"
-                  style={{
-                    opacity: visible ? 1 : 0.35,
-                    transform: `${
-                      visible ? "scale(1)" : "scale(0.7)"
-                    }`,
-                  }}
-                >
-                  {momento.icono}
-                </div>
-
-                {/* Espaciador para el punto en mobile */}
-                <div className="w-9 sm:hidden shrink-0" />
-
-                {/* Tarjeta */}
-                <div
-                  className={`flex-1 sm:w-[calc(50%-2rem)] transition-all duration-700 ease-out ${
-                    izquierda ? "sm:text-right" : "sm:text-left"
+                  key={momento.id}
+                  ref={(el) => { refs.current[index] = el; }}
+                  data-index={index}
+                  className={`relative flex items-start sm:items-center gap-4 sm:gap-8 ${
+                    izquierda ? "sm:flex-row" : "sm:flex-row-reverse"
                   }`}
-                  style={{
-                    opacity: visible ? 1 : 0,
-                    transform: visible
-                      ? "translateY(0)"
-                      : "translateY(24px)",
-                  }}
                 >
-                  <div className="bg-white/10 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.13] transition">
-                    {momento.imagen && (
-                      <img
-                        src={momento.imagen}
-                        alt={momento.titulo}
-                        className="w-full h-40 sm:h-48 object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className="p-4 sm:p-5">
-                      <div
-                        className={`flex items-center gap-2 flex-wrap ${
-                          izquierda ? "sm:justify-end" : "sm:justify-start"
-                        }`}
-                      >
-                        <span className="text-xs sm:text-sm text-pink-400 font-semibold">
-                          {momento.fecha}
-                        </span>
+                  {/* Punto en el riel */}
+                  <div
+                    className="absolute left-[13px] sm:left-1/2 top-1 sm:top-1/2 sm:-translate-y-1/2 sm:-translate-x-1/2 z-10 w-7 h-7 rounded-full bg-[#1B1033] border-2 border-pink-400 flex items-center justify-center text-sm transition-all duration-500"
+                    style={{
+                      opacity: visible ? 1 : 0.35,
+                      transform: `${visible ? "scale(1)" : "scale(0.7)"}`,
+                    }}
+                  >
+                    {momento.icono}
+                  </div>
+
+                  {/* Espaciador para el punto en mobile */}
+                  <div className="w-9 sm:hidden shrink-0" />
+
+                  {/* Tarjeta */}
+                  <div
+                    className={`flex-1 sm:w-[calc(50%-2rem)] transition-all duration-700 ease-out ${
+                      izquierda ? "sm:text-right" : "sm:text-left"
+                    }`}
+                    style={{
+                      opacity: visible ? 1 : 0,
+                      transform: visible ? "translateY(0)" : "translateY(24px)",
+                    }}
+                  >
+                    <div className="bg-white/10 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.13] transition">
+                      {momento.imagen_url && (
+                        <img
+                          src={momento.imagen_url}
+                          alt={momento.titulo}
+                          className="w-full h-40 sm:h-48 object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="p-4 sm:p-5">
+                        <div
+                          className={`flex items-center gap-2 flex-wrap ${
+                            izquierda ? "sm:justify-end" : "sm:justify-start"
+                          }`}
+                        >
+                          <span className="text-xs sm:text-sm text-pink-400 font-semibold">
+                            {momento.fecha}
+                          </span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold mt-1">
+                          {momento.titulo}
+                        </h3>
+                        <p className="text-gray-300 mt-1.5 text-sm sm:text-base leading-relaxed">
+                          {momento.descripcion}
+                        </p>
                       </div>
-                      <h3 className="text-lg sm:text-xl font-bold mt-1">
-                        {momento.titulo}
-                      </h3>
-                      <p className="text-gray-300 mt-1.5 text-sm sm:text-base leading-relaxed">
-                        {momento.descripcion}
-                      </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Espaciador simétrico en desktop */}
-                <div className="hidden sm:block sm:w-[calc(50%-2rem)]" />
-              </div>
-            );
-          })}
+                  {/* Espaciador simétrico en desktop */}
+                  <div className="hidden sm:block sm:w-[calc(50%-2rem)]" />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="text-center mt-12 px-6">
         <Link

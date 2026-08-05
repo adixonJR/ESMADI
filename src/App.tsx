@@ -14,6 +14,13 @@ import Cartas from "./conponents/cartas";
 import LoadingScreen from "./conponents/loading";
 import Playlist from "./conponents/Playlist";
 import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
+import Floo from "./conponents/floo";
+import AgregarMomento from "./conponents/AgregarMomento";
+
+//////////////////// FECHAS //////////////////////
+
+import SanValentin from "./fechas/SanValentin";
+import Aniversario from "./fechas/Aniversario"
 
 //////////////////// PAGES //////////////////////
 
@@ -53,6 +60,12 @@ function AppContent() {
           <Route path="/playlist" element={<Playlist />} />
           <Route path="/capsula-del-tiempo" element={<CapsulaDelTiempo />} />
           <Route path="/fechas" element={<Fechas />} />
+          <Route path="/SanValentin" element={<SanValentin />} />
+          <Route path="/Aniversario" element={<Aniversario />} />
+          <Route path="/floo" element={<Floo />} />
+          <Route path="/AgregarMomento" element={<AgregarMomento/>} />
+          
+          
         </Routes>
       </main>
 

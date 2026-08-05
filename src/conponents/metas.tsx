@@ -83,6 +83,92 @@ const nombresMes = [
 ];
 const diasSemana = ["D", "L", "M", "M", "J", "V", "S"];
 
+/**
+ * Trazo del check (path) que se "dibuja" animando stroke-dashoffset.
+ * pathLength={1} normaliza el largo del path a 1 unidad, así el
+ * dasharray/dashoffset no dependen de la geometría real del path.
+ */
+function TrazoCheck({ marcado }: { marcado: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[62%] h-[62%]" fill="none">
+      <path
+        d="M4 12.5L9.5 18L20 6.5"
+        stroke="white"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={1}
+        style={{
+          strokeDasharray: 1,
+          strokeDashoffset: marcado ? 0 : 1,
+          transition: "stroke-dashoffset 0.35s cubic-bezier(0.65, 0, 0.35, 1) 0.05s",
+        }}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Círculo del checkbox como <span>, pensado para vivir dentro de un
+ * <button> padre que tenga la clase "group" (así el hover/active del
+ * botón entero dispara el efecto whileHover/whileTap del círculo).
+ */
+function IndicadorCheck({
+  marcado,
+  colorGradiente,
+}: {
+  marcado: boolean;
+  colorGradiente: string;
+}) {
+  return (
+    <span
+      className={`relative w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0
+      transition-transform duration-150 ease-out
+      group-hover:scale-110 group-active:scale-90
+      ${
+        marcado
+          ? `bg-gradient-to-r ${colorGradiente} border-transparent scale-105`
+          : "border-gray-400"
+      }`}
+      style={{
+        transitionProperty: "transform, background-color, border-color",
+      }}
+    >
+      <TrazoCheck marcado={marcado} />
+    </span>
+  );
+}
+
+/**
+ * Variante como <button> propio, para los casos donde el círculo
+ * ES el elemento clickeable (no hay un botón padre envolviendo todo).
+ */
+function BotonCheck({
+  marcado,
+  onClick,
+  colorGradiente,
+}: {
+  marcado: boolean;
+  onClick: () => void;
+  colorGradiente: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0
+      transition-transform duration-150 ease-out hover:scale-110 active:scale-90
+      ${
+        marcado
+          ? `bg-gradient-to-r ${colorGradiente} border-transparent`
+          : "border-gray-400"
+      }`}
+    >
+      <TrazoCheck marcado={marcado} />
+    </button>
+  );
+}
+
 function Metas() {
   const navigate = useNavigate();
 
@@ -142,7 +228,6 @@ function Metas() {
       fecha: nuevaFecha || null,
     };
 
-    // Optimista: la agregamos localmente mientras se guarda
     const { data, error } = await supabase
       .from("metas")
       .insert(nueva)
@@ -167,7 +252,6 @@ function Metas() {
 
     const nuevoEstado = !tarea.hecha;
 
-    // Optimista
     setTareas((prev) => prev.map((t) => (t.id === id ? { ...t, hecha: nuevoEstado } : t)));
 
     const { error } = await supabase
@@ -177,7 +261,6 @@ function Metas() {
 
     if (error) {
       console.error(error);
-      // revertir si falla
       setTareas((prev) => prev.map((t) => (t.id === id ? { ...t, hecha: !nuevoEstado } : t)));
       setError("No se pudo actualizar la meta.");
     }
@@ -192,12 +275,11 @@ function Metas() {
 
     if (error) {
       console.error(error);
-      setTareas(respaldo); // revertir si falla
+      setTareas(respaldo);
       setError("No se pudo eliminar la meta.");
     }
   };
 
-  // --- Helpers derivados (agrupar por plazo) ---
   const tareasPorPlazo = (key: string) => tareas.filter((t) => t.plazo === key);
 
   const totalTareas = tareas.length;
@@ -207,7 +289,6 @@ function Metas() {
 
   const getPlazoInfo = (key: string) => plazosBase.find((p) => p.key === key)!;
 
-  // --- Lógica de calendario ---
   const primerDiaMes = new Date(anioActual, mesActual, 1).getDay();
   const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
   const celdas: (number | null)[] = [
@@ -250,7 +331,6 @@ function Metas() {
           </div>
         )}
 
-        {/* Volver + botoncitos */}
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <button
             onClick={() => navigate(-1)}
@@ -292,7 +372,6 @@ function Metas() {
           </p>
         </div>
 
-        {/* Resumen general */}
         <div className="bg-white/10 backdrop-blur rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-5 sm:mb-6">
           <div className="flex items-center justify-between mb-3 gap-2">
             <h2 className="font-bold text-base sm:text-xl">Progreso total</h2>
@@ -311,7 +390,6 @@ function Metas() {
           </p>
         </div>
 
-        {/* ---------- LISTA (vista principal) ---------- */}
         <div className="space-y-4 sm:space-y-5">
           {plazosBase.map((plazo) => {
             const estaAbierto = abierto === plazo.key;
@@ -397,17 +475,9 @@ function Metas() {
                           >
                             <button
                               onClick={() => toggleHecha(tarea.id)}
-                              className="flex items-center gap-2 sm:gap-3 flex-1 text-left min-w-0"
+                              className="group flex items-center gap-2 sm:gap-3 flex-1 text-left min-w-0"
                             >
-                              <span
-                                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                                  tarea.hecha
-                                    ? `bg-gradient-to-r ${plazo.color} border-transparent scale-105`
-                                    : "border-gray-400"
-                                }`}
-                              >
-                                {tarea.hecha && <Check size={10} className="text-white" />}
-                              </span>
+                              <IndicadorCheck marcado={tarea.hecha} colorGradiente={plazo.color} />
                               <span className="min-w-0">
                                 <span
                                   className={`block text-xs sm:text-base break-words sm:truncate transition ${
@@ -557,14 +627,11 @@ function Metas() {
                       const plazoInfo = getPlazoInfo(t.plazo);
                       return (
                         <div key={t.id} className="flex items-center gap-2 sm:gap-3 bg-white/5 rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3">
-                          <button
+                          <BotonCheck
+                            marcado={t.hecha}
                             onClick={() => toggleHecha(t.id)}
-                            className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                              t.hecha ? `bg-gradient-to-r ${plazoInfo.color} border-transparent` : "border-gray-400"
-                            }`}
-                          >
-                            {t.hecha && <Check size={10} className="text-white" />}
-                          </button>
+                            colorGradiente={plazoInfo.color}
+                          />
                           <div className="min-w-0 flex-1">
                             <p className={`text-xs sm:text-sm break-words ${t.hecha ? "line-through text-gray-500" : "text-white"}`}>
                               {t.texto}

@@ -17,19 +17,16 @@ import { Link } from "react-router-dom";
 import supabase from "../lib/supabase.js";
 
 /* ---------- Helpers de fechas ---------- */
-// Días transcurridos entre dos fechas
 function diasEntre(desde: Date, hasta: Date) {
   const a = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
   const b = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
-// Día del año (1-366), usado para elegir el mensaje del día
 function diaDelAnio(fecha: Date) {
   const inicio = new Date(fecha.getFullYear(), 0, 0);
   const diff = fecha.getTime() - inicio.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
-// Días que faltan para la próxima ocurrencia de una fecha (mes/día), aunque ya haya pasado este año
 function diasHastaProximo(mes: number, dia: number) {
   const hoy = new Date();
   const hoySinHora = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
@@ -39,6 +36,7 @@ function diasHastaProximo(mes: number, dia: number) {
   }
   return Math.round((proxima.getTime() - hoySinHora.getTime()) / (1000 * 60 * 60 * 24));
 }
+
 /* ---------- Contador animado (efecto "van pasando los números") ---------- */
 function ContadorAnimado({ valor, duracion = 1500 }: { valor: number; duracion?: number }) {
   const [display, setDisplay] = useState(0);
@@ -61,6 +59,49 @@ function ContadorAnimado({ valor, duracion = 1500 }: { valor: number; duracion?:
 
   return <>{display.toLocaleString("es-ES")}</>;
 }
+
+/* ---------- Reveal: aparece con fade + slide cuando entra en pantalla ---------- */
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out will-change-transform ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+      } ${className}`}
+      style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /* ---------- Tipos ---------- */
 interface ExplorarItem {
   id: string;
@@ -81,7 +122,7 @@ interface RecuerdoAlbum {
 }
 
 function Inicio() {
-  const fechaInicio = new Date("2022-05-22"); // 22 de mayo del 2022
+  const fechaInicio = new Date("2022-05-22");
   const hoy = new Date();
   const diasJuntos = diasEntre(fechaInicio, hoy);
   const mensajes = [
@@ -96,7 +137,6 @@ function Inicio() {
     "Tú y yo, siempre 🫂",
     "El amor contigo se siente fácil y bonito 🌸",
   ];
-  // Mensaje "del día": cambia una vez al día, no en cada render
   const indiceDelDia = diaDelAnio(hoy);
   const mensaje = mensajes[indiceDelDia % mensajes.length];
 
@@ -104,6 +144,7 @@ function Inicio() {
   const [recuerdo, setRecuerdo] = useState<RecuerdoAlbum | null>(null);
   const [recuerdoUrl, setRecuerdoUrl] = useState<string | null>(null);
   const [cargandoRecuerdo, setCargandoRecuerdo] = useState(true);
+  const [imagenCargada, setImagenCargada] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -123,7 +164,6 @@ function Inicio() {
         return;
       }
 
-      // Elige cualquier fila al azar en cada carga de la página
       const indiceAleatorio = Math.floor(Math.random() * data.length);
       const elegido = data[indiceAleatorio] as RecuerdoAlbum;
       setRecuerdo(elegido);
@@ -147,7 +187,6 @@ function Inicio() {
     };
   }, []);
 
-  // Próximas fechas con contador dinámico
   const proximasFechas = [
     {
       emoji: "🎂",
@@ -168,6 +207,7 @@ function Inicio() {
       dias: diasHastaProximo(3, 17),
     },
   ];
+
   const explorarItems: ExplorarItem[] = [
     {
       id: "juegos",
@@ -177,8 +217,7 @@ function Inicio() {
       title: "Juegos",
       desc: "Preguntas, retos y minijuegos para compartir momentos juntos.",
       button: "Jugar ahora",
-      buttonClass:
-        "bg-gradient-to-r from-pink-500 to-orange-400 text-white",
+      buttonClass: "bg-gradient-to-r from-pink-500 to-orange-400 text-white",
     },
     {
       id: "progreso",
@@ -212,11 +251,30 @@ function Inicio() {
       disabled: true,
     },
   ];
+
   return (
     <div className="min-h-screen bg-[#1B1033] text-white px-4 sm:px-6 md:px-8 pb-10">
+      <style>{`
+        @keyframes flotar {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .animar-flotar { animation: flotar 3s ease-in-out infinite; }
+
+        @keyframes brillo {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .brillo-esqueleto {
+          background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.13) 37%, rgba(255,255,255,0.05) 63%);
+          background-size: 400% 100%;
+          animation: brillo 1.4s ease-in-out infinite;
+        }
+      `}</style>
+
       <div className="max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
         {/* Saludo */}
-        <section className="pt-5 flex items-start justify-between gap-3">
+        <Reveal className="pt-5 flex items-start justify-between gap-3" delay={0}>
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold">
               ¡Hola,
@@ -229,15 +287,16 @@ function Inicio() {
 
           <Link
             to="/perfil"
-            className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500"
+            className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 transition-transform duration-150 active:scale-90 hover:scale-105"
           >
             <div className="w-full h-full rounded-full bg-[#1B1033] flex items-center justify-center overflow-hidden">
               <Heart size={18} className="text-pink-400 fill-pink-400" />
             </div>
           </Link>
-        </section>
+        </Reveal>
+
         {/* Banner */}
-        <section className="mt-6">
+        <Reveal className="mt-6" delay={80}>
           <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-orange-400 shadow-xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
@@ -248,20 +307,21 @@ function Inicio() {
                   <ContadorAnimado valor={diasJuntos} /> días creando recuerdos juntos.
                 </p>
               </div>
-              <Heart className="fill-white shrink-0" size={40} />
+              <Heart className="fill-white shrink-0 animar-flotar" size={40} />
             </div>
             <Link
               to="/nosotros"
-              className="mt-6 inline-flex items-center gap-2 bg-white text-pink-600 font-semibold px-4 sm:px-5 py-2.5 sm:py-3 rounded-full text-sm sm:text-base"
+              className="mt-6 inline-flex items-center gap-2 bg-white text-pink-600 font-semibold px-4 sm:px-5 py-2.5 sm:py-3 rounded-full text-sm sm:text-base transition-transform duration-150 hover:scale-[1.03] active:scale-95"
             >
               Ver nuestra historia
               <ChevronRight size={18} />
             </Link>
           </div>
-        </section>
+        </Reveal>
+
         {/* Contador */}
-        <section className="mt-6">
-          <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
+        <Reveal className="mt-6" delay={140}>
+          <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5 transition-shadow hover:shadow-lg hover:shadow-pink-500/10">
             <div className="flex items-center gap-3">
               <CalendarDays className="text-pink-400" />
               <h3 className="font-bold text-lg sm:text-xl">
@@ -277,12 +337,13 @@ function Inicio() {
               </p>
             </div>
           </div>
-        </section>
+        </Reveal>
+
         {/* Mensaje */}
-        <section className="mt-5">
-          <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
+        <Reveal className="mt-5">
+          <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5 transition-shadow hover:shadow-lg hover:shadow-yellow-400/10">
             <div className="flex items-center gap-3">
-              <Sparkles className="text-yellow-400" />
+              <Sparkles className="text-yellow-400 animate-pulse" />
               <h3 className="font-bold text-lg sm:text-xl">
                 Mensaje del día
               </h3>
@@ -291,9 +352,10 @@ function Inicio() {
               "{mensaje}"
             </p>
           </div>
-        </section>
+        </Reveal>
+
         {/* Recuerdo (aleatorio, desde Supabase) */}
-        <section className="mt-5">
+        <Reveal className="mt-5">
           <div className="rounded-3xl overflow-hidden bg-gradient-to-r from-purple-700 to-pink-700">
             <div className="flex items-center gap-3 p-4 sm:p-5 pb-0">
               <Camera className="text-white" />
@@ -303,17 +365,26 @@ function Inicio() {
             </div>
 
             {cargandoRecuerdo ? (
-              <p className="mt-4 text-white/80 text-sm sm:text-base p-4 sm:p-5 pt-2">
-                Cargando recuerdo...
-              </p>
+              <div className="p-4 sm:p-5 pt-4 space-y-3">
+                <div className="w-full h-48 sm:h-56 rounded-2xl brillo-esqueleto" />
+                <div className="h-3.5 w-3/4 rounded-full brillo-esqueleto" />
+              </div>
             ) : recuerdo ? (
               <>
                 {recuerdoUrl && (
-                  <img
-                    src={recuerdoUrl}
-                    alt={recuerdo.descripcion || "Recuerdo"}
-                    className="w-full h-48 sm:h-56 object-cover mt-4"
-                  />
+                  <div className="relative w-full h-48 sm:h-56 mt-4 overflow-hidden">
+                    {!imagenCargada && (
+                      <div className="absolute inset-0 brillo-esqueleto" />
+                    )}
+                    <img
+                      src={recuerdoUrl}
+                      alt={recuerdo.descripcion || "Recuerdo"}
+                      onLoad={() => setImagenCargada(true)}
+                      className={`w-full h-full object-cover transition-opacity duration-500 ${
+                        imagenCargada ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
+                  </div>
                 )}
                 <p className="text-white/90 text-sm sm:text-base p-4 sm:p-5 pt-3">
                   {recuerdo.descripcion || "Un recuerdo especial ❤️"}
@@ -325,21 +396,23 @@ function Inicio() {
               </p>
             )}
           </div>
-        </section>
+        </Reveal>
+
         {/* Explorar — Carrusel de cuadraditos */}
-        <section className="mt-8">
+        <Reveal className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
             Explorar
           </h2>
           <ExplorarCarrusel items={explorarItems} />
-        </section>
+        </Reveal>
+
         {/* Nuestra aventura */}
-        <section className="mt-8">
+        <Reveal className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
             Nuestra aventura
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-6 text-center">
+            <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-6 text-center transition-transform duration-150 hover:-translate-y-0.5 active:scale-95">
               <Trophy className="mx-auto text-yellow-400" size={30} />
               <p className="text-gray-400 mt-3 text-sm sm:text-base">
                 Logros
@@ -348,7 +421,7 @@ function Inicio() {
                 12
               </h3>
             </div>
-            <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-6 text-center">
+            <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-6 text-center transition-transform duration-150 hover:-translate-y-0.5 active:scale-95">
               <Flame className="mx-auto text-orange-400" size={30} />
               <p className="text-gray-400 mt-3 text-sm sm:text-base">
                 Días juntos
@@ -358,36 +431,38 @@ function Inicio() {
               </h3>
             </div>
           </div>
-        </section>
+        </Reveal>
+
         {/* Acciones rápidas */}
-        <section className="mt-8">
+        <Reveal className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
             Acciones rápidas
           </h2>
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
-            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 hover:bg-[#352257] transition">
+            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 transition-all duration-150 hover:bg-[#352257] active:scale-90">
               <Camera className="mx-auto text-pink-400" size={26} />
               <p className="mt-2 sm:mt-3 text-xs sm:text-sm">Fotos</p>
             </button>
-            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 hover:bg-[#352257] transition">
+            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 transition-all duration-150 hover:bg-[#352257] active:scale-90">
               <Gift className="mx-auto text-purple-400" size={26} />
               <p className="mt-2 sm:mt-3 text-xs sm:text-sm">Recuerdos</p>
             </button>
-            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 hover:bg-[#352257] transition">
+            <button className="bg-[#2A1847] rounded-2xl p-3 sm:p-5 transition-all duration-150 hover:bg-[#352257] active:scale-90">
               <Heart className="mx-auto text-red-400 fill-red-400" size={26} />
               <p className="mt-2 sm:mt-3 text-xs sm:text-sm">Carta</p>
             </button>
           </div>
-        </section>
+        </Reveal>
+
         {/* Próximas fechas */}
-        <section className="mt-8">
+        <Reveal className="mt-8">
           <h2 className="text-lg sm:text-xl font-bold text-yellow-300 mb-4">
             Próximas fechas ❤️
           </h2>
           <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5 space-y-4">
             {proximasFechas.map((item, i) => (
               <div key={item.titulo}>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 rounded-xl transition-colors hover:bg-white/5 -mx-2 px-2 py-1">
                   <div>
                     <p className="font-semibold text-sm sm:text-base">
                       {item.emoji} {item.titulo}
@@ -396,7 +471,11 @@ function Inicio() {
                       {item.fechaTexto}
                     </p>
                   </div>
-                  <span className="text-pink-400 text-xs sm:text-sm text-right">
+                  <span
+                    className={`text-pink-400 text-xs sm:text-sm text-right ${
+                      item.dias === 0 ? "animate-pulse font-semibold" : ""
+                    }`}
+                  >
                     {item.dias === 0
                       ? "¡Es hoy! 🎉"
                       : item.dias === 1
@@ -410,11 +489,12 @@ function Inicio() {
               </div>
             ))}
           </div>
-        </section>
+        </Reveal>
       </div>
     </div>
   );
 }
+
 /* ---------- Carrusel de Explorar (cuadraditos, varias tarjetas visibles) ---------- */
 function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -423,6 +503,7 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
   const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPointerDown = useRef(false);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const getStep = () => {
     const track = trackRef.current;
     if (!track || !track.children[0]) return 0;
@@ -438,7 +519,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     track.scrollTo({ left: getStep() * clamped, behavior: "smooth" });
     setActiveIndex(clamped);
   };
-  // Auto-avance
   useEffect(() => {
     const id = setInterval(() => {
       if (pausedRef.current) return;
@@ -458,7 +538,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
       pausedRef.current = false;
     }, 4500);
   };
-  // Detecta en qué tarjeta quedó al terminar de deslizar (scroll nativo)
   const handleScrollEnd = () => {
     const track = trackRef.current;
     if (!track) return;
@@ -471,13 +550,14 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(handleScrollEnd, 100);
   };
+
   return (
     <div>
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-    <div
+      <div
         ref={trackRef}
         onScroll={onScroll}
         onPointerDown={() => {
@@ -492,7 +572,7 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
         {items.map((item) => {
           const Icon = item.icon;
           const inner = (
-            <div className="bg-[#2A1847] rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-white/5 h-full flex flex-col">
+            <div className="bg-[#2A1847] rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-white/5 h-full flex flex-col transition-transform duration-150 hover:-translate-y-1 active:scale-95">
               <div
                 className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${item.iconBg} flex items-center justify-center shadow-lg`}
               >
@@ -507,7 +587,7 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
               {item.to && !item.disabled ? (
                 <Link
                   to={item.to}
-                  className={`mt-3 text-center rounded-lg py-1.5 text-[11px] sm:text-xs font-semibold ${item.buttonClass}`}
+                  className={`mt-3 text-center rounded-lg py-1.5 text-[11px] sm:text-xs font-semibold transition-transform duration-150 active:scale-95 ${item.buttonClass}`}
                 >
                   {item.button}
                 </Link>
@@ -531,7 +611,6 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
           );
         })}
       </div>
-      {/* Puntos indicadores */}
       <div className="flex justify-center gap-2 mt-3">
         {items.map((item, i) => (
           <button
@@ -540,7 +619,7 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
               scrollToIndex(i);
               pauseTemporarily();
             }}
-            className={`h-1.5 rounded-full transition-all ${
+            className={`h-1.5 rounded-full transition-all duration-300 active:scale-90 ${
               i === activeIndex ? "w-5 bg-pink-400" : "w-1.5 bg-white/20"
             }`}
             aria-label={`Ir a la tarjeta ${i + 1}`}
@@ -550,4 +629,5 @@ function ExplorarCarrusel({ items }: { items: ExplorarItem[] }) {
     </div>
   );
 }
+
 export default Inicio;
