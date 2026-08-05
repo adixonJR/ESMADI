@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Heart, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Heart, Loader2, Plus, X } from "lucide-react";
 import supabase from "../lib/supabase.js";
 import type { Momento } from "../lib/tipos";
 
@@ -13,6 +13,9 @@ function Timeline() {
   const refs = useRef<(HTMLDivElement | null)[]>([]);
   const contenedorRef = useRef<HTMLDivElement | null>(null);
   const [progreso, setProgreso] = useState(0);
+
+  // Momento seleccionado para mostrar en grande (lightbox)
+  const [momentoActivo, setMomentoActivo] = useState<Momento | null>(null);
 
   // Trae los momentos desde Supabase
   useEffect(() => {
@@ -99,6 +102,24 @@ function Timeline() {
       window.removeEventListener("resize", onScroll);
     };
   }, [momentos]);
+
+  // Cierra el lightbox con la tecla Escape y bloquea el scroll de fondo
+  useEffect(() => {
+    if (!momentoActivo) return;
+
+    const manejarTecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMomentoActivo(null);
+    };
+
+    document.addEventListener("keydown", manejarTecla);
+    const overflowOriginal = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", manejarTecla);
+      document.body.style.overflow = overflowOriginal;
+    };
+  }, [momentoActivo]);
 
   return (
     <div className="min-h-screen bg-[#1B1033] text-white pb-16">
@@ -218,12 +239,19 @@ function Timeline() {
                   >
                     <div className="bg-white/10 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.13] transition">
                       {momento.imagen_url && (
-                        <img
-                          src={momento.imagen_url}
-                          alt={momento.titulo}
-                          className="w-full h-40 sm:h-48 object-cover"
-                          loading="lazy"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => setMomentoActivo(momento)}
+                          className="block w-full group cursor-zoom-in"
+                          title="Ver momento"
+                        >
+                          <img
+                            src={momento.imagen_url}
+                            alt={momento.titulo}
+                            className="w-full h-40 sm:h-48 object-cover transition duration-300 group-hover:scale-105 group-hover:brightness-90"
+                            loading="lazy"
+                          />
+                        </button>
                       )}
                       <div className="p-4 sm:p-5">
                         <div
@@ -262,6 +290,49 @@ function Timeline() {
           ← Volver a Nosotros
         </Link>
       </div>
+
+      {/* Lightbox: imagen en grande con fondo distorsionado (blur) */}
+      {momentoActivo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/70 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
+          onClick={() => setMomentoActivo(null)}
+        >
+          <div
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#241539] border border-white/10 rounded-2xl shadow-2xl animate-[popIn_0.25s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setMomentoActivo(null)}
+              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition"
+              title="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            {momentoActivo.imagen_url && (
+              <img
+                src={momentoActivo.imagen_url}
+                alt={momentoActivo.titulo}
+                className="w-full max-h-[55vh] object-cover"
+              />
+            )}
+
+            <div className="p-5 sm:p-6">
+              <span className="text-xs sm:text-sm text-pink-400 font-semibold">
+                {momentoActivo.fecha}
+              </span>
+              <h3 className="text-xl sm:text-2xl font-bold mt-1 flex items-center gap-2">
+                <span>{momentoActivo.icono}</span>
+                {momentoActivo.titulo}
+              </h3>
+              <p className="text-gray-300 mt-2 text-sm sm:text-base leading-relaxed">
+                {momentoActivo.descripcion}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
