@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import {
   ChevronDown,
   Menu,
@@ -19,6 +20,34 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
+
+// ---------- Notificacion local al subir una foto ----------
+async function notificarFotoAgregada() {
+  try {
+    const permiso = await LocalNotifications.checkPermissions();
+    let concedido = permiso.display === "granted";
+
+    if (!concedido) {
+      const resultado = await LocalNotifications.requestPermissions();
+      concedido = resultado.display === "granted";
+    }
+
+    if (!concedido) return;
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: Date.now(),
+          title: "Nueva foto 📸",
+          body: "Se agregó una imagen a tu perfil",
+          schedule: { at: new Date(Date.now() + 1000) },
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("No se pudo enviar la notificacion:", error);
+  }
+}
 
 type PersonaId = 1 | 2;
 
@@ -519,6 +548,10 @@ function SubirFotoModal({
       if (insertError) throw insertError;
 
       onSubida({ ...data, imagen_url: urlFoto(path) });
+
+      // Notifica que se agrego una foto nueva
+      notificarFotoAgregada();
+
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo subir la foto");
