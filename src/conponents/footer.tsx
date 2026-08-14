@@ -6,12 +6,44 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function Footer() {
   const location = useLocation();
   const enJuego = location.pathname.startsWith("/juegos/chispa");
   const [tocado, setTocado] = useState<string | null>(null);
+  const [visible, setVisible] = useState(true);
+
+  const lastScrollY = useRef(0);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const diff = currentY - lastScrollY.current;
+
+      if (currentY <= 0) {
+        setVisible(true);
+      } else if (diff > 4) {
+        setVisible(false);
+      } else if (diff < -4) {
+        setVisible(true);
+      }
+
+      lastScrollY.current = currentY;
+
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+      stopTimer.current = setTimeout(() => {
+        setVisible(true);
+      }, 200);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+    };
+  }, []);
 
   const items = [
     { path: "/", label: "Inicio", icon: House },
@@ -31,7 +63,11 @@ function Footer() {
   };
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 flex justify-center z-50">
+    <footer
+      className={`fixed bottom-0 left-0 right-0 flex justify-center z-50 transition-transform duration-300 ease-in-out ${
+        visible ? "translate-y-0" : "translate-y-full"
+      }`}
+    >
       <style>{`
         @keyframes wiggle {
           0%, 100% { transform: rotate(0deg); }

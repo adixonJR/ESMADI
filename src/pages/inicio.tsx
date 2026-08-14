@@ -11,6 +11,20 @@ import {
   BarChart3,
   BookHeart,
   ChevronRight,
+  GraduationCap,
+  Briefcase,
+  Home,
+  Plane,
+  Moon,
+  Utensils,
+  Dumbbell,
+  Car,
+  BookOpen,
+  Coffee,
+  Music2,
+  Pencil,
+  X,
+  Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -121,6 +135,34 @@ interface RecuerdoAlbum {
   descripcion: string | null;
 }
 
+interface ActividadPersona {
+  id: string;
+  persona: "yo" | "ella";
+  nombre: string;
+  estado: string;
+  icono: string;
+  color: string;
+}
+
+/* ---------- Íconos disponibles para "¿Qué estamos haciendo?" ---------- */
+const ICONOS_DISPONIBLES: { key: string; icon: LucideIcon }[] = [
+  { key: "GraduationCap", icon: GraduationCap },
+  { key: "Briefcase", icon: Briefcase },
+  { key: "Home", icon: Home },
+  { key: "Plane", icon: Plane },
+  { key: "Moon", icon: Moon },
+  { key: "Utensils", icon: Utensils },
+  { key: "Dumbbell", icon: Dumbbell },
+  { key: "Car", icon: Car },
+  { key: "BookOpen", icon: BookOpen },
+  { key: "Coffee", icon: Coffee },
+  { key: "Music2", icon: Music2 },
+  { key: "Heart", icon: Heart },
+];
+const ICONOS_MAP: Record<string, LucideIcon> = Object.fromEntries(
+  ICONOS_DISPONIBLES.map((i) => [i.key, i.icon])
+);
+
 function Inicio() {
   const fechaInicio = new Date("2022-05-22");
   const hoy = new Date();
@@ -139,6 +181,77 @@ function Inicio() {
   ];
   const indiceDelDia = diaDelAnio(hoy);
   const mensaje = mensajes[indiceDelDia % mensajes.length];
+
+  /* ---------- ¿Qué estamos haciendo? (editable, desde Supabase) ---------- */
+  const [actividad, setActividad] = useState<ActividadPersona[]>([]);
+  const [cargandoActividad, setCargandoActividad] = useState(true);
+  const [editandoActividad, setEditandoActividad] = useState(false);
+  const [guardandoActividad, setGuardandoActividad] = useState(false);
+  const [borrador, setBorrador] = useState<
+    Record<string, { estado: string; icono: string }>
+  >({});
+
+  useEffect(() => {
+    let activo = true;
+
+    const cargarActividad = async () => {
+      setCargandoActividad(true);
+      const { data, error } = await supabase
+        .from("actividad_actual")
+        .select("id, persona, nombre, estado, icono, color")
+        .order("persona", { ascending: true });
+
+      if (!activo) return;
+
+      if (error || !data) {
+        console.error("Error cargando actividad:", error);
+        setCargandoActividad(false);
+        return;
+      }
+
+      setActividad(data as ActividadPersona[]);
+      setCargandoActividad(false);
+    };
+
+    cargarActividad();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const abrirEdicionActividad = () => {
+    const inicial: Record<string, { estado: string; icono: string }> = {};
+    actividad.forEach((p) => {
+      inicial[p.id] = { estado: p.estado, icono: p.icono };
+    });
+    setBorrador(inicial);
+    setEditandoActividad(true);
+  };
+
+  const guardarActividad = async () => {
+    setGuardandoActividad(true);
+    try {
+      await Promise.all(
+        actividad.map((p) => {
+          const cambios = borrador[p.id];
+          if (!cambios) return Promise.resolve();
+          return supabase
+            .from("actividad_actual")
+            .update({ estado: cambios.estado, icono: cambios.icono })
+            .eq("id", p.id);
+        })
+      );
+      setActividad((prev) =>
+        prev.map((p) => ({ ...p, ...(borrador[p.id] ?? {}) }))
+      );
+      setEditandoActividad(false);
+    } catch (err) {
+      console.error("Error guardando actividad:", err);
+    } finally {
+      setGuardandoActividad(false);
+    }
+  };
 
   /* ---------- Recuerdo aleatorio (desde Supabase) ---------- */
   const [recuerdo, setRecuerdo] = useState<RecuerdoAlbum | null>(null);
@@ -286,13 +399,21 @@ function Inicio() {
           </div>
 
           <Link
-            to="/perfil"
-            className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 transition-transform duration-150 active:scale-90 hover:scale-105"
-          >
-            <div className="w-full h-full rounded-full bg-[#1B1033] flex items-center justify-center overflow-hidden">
-              <Heart size={18} className="text-pink-400 fill-pink-400" />
-            </div>
-          </Link>
+  to="/perfil"
+  className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 transition-transform duration-150 active:scale-90 hover:scale-105"
+>
+  <div className="w-full h-full rounded-full bg-[#1B1033] flex items-center justify-center overflow-hidden">
+    <div className="relative w-[22px] h-[22px]">
+      {/* Cabeza */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-0 w-[10px] h-[10px] rounded-full bg-pink-300" />
+      {/* Cuerpo / hombros */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[20px] h-[11px] bg-pink-300"
+        style={{ borderRadius: "50% 50% 0 0 / 100% 100% 0 0" }}
+      />
+    </div>
+  </div>
+</Link>
         </Reveal>
 
         {/* Banner */}
@@ -394,6 +515,143 @@ function Inicio() {
               <p className="mt-4 text-white/80 text-sm sm:text-base p-4 sm:p-5 pt-2">
                 Aún no hay recuerdos guardados en el álbum.
               </p>
+            )}
+          </div>
+        </Reveal>
+
+        {/* ¿Qué estamos haciendo? */}
+        <Reveal className="mt-5">
+          <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg sm:text-xl">
+                ¿Qué estamos haciendo? 👀
+              </h3>
+
+              {!editandoActividad ? (
+                <button
+                  onClick={abrirEdicionActividad}
+                  disabled={cargandoActividad || actividad.length === 0}
+                  className="flex items-center gap-1 text-xs sm:text-sm text-pink-400 font-semibold px-2.5 py-1 rounded-full bg-white/5 transition-colors hover:bg-white/10 active:scale-95 disabled:opacity-40"
+                >
+                  <Pencil size={13} />
+                  Editar
+                </button>
+              ) : (
+                <button
+                  onClick={() => setEditandoActividad(false)}
+                  className="flex items-center gap-1 text-xs sm:text-sm text-gray-400 font-semibold px-2.5 py-1 rounded-full bg-white/5 transition-colors hover:bg-white/10 active:scale-95"
+                >
+                  <X size={13} />
+                  Cancelar
+                </button>
+              )}
+            </div>
+
+            {cargandoActividad ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-[#1B1033] rounded-2xl h-28 brillo-esqueleto"
+                  />
+                ))}
+              </div>
+            ) : actividad.length === 0 ? (
+              <p className="text-gray-400 text-sm">
+                Aún no hay estados configurados.
+              </p>
+            ) : !editandoActividad ? (
+              <div className="grid grid-cols-2 gap-3">
+                {actividad.map((persona) => {
+                  const Icon = ICONOS_MAP[persona.icono] ?? Heart;
+                  return (
+                    <div
+                      key={persona.id}
+                      className="bg-[#1B1033] rounded-2xl p-3 sm:p-4 flex flex-col items-center text-center transition-transform duration-150 hover:-translate-y-0.5"
+                    >
+                      <div
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${persona.color} flex items-center justify-center shadow-lg`}
+                      >
+                        <Icon size={20} className="text-white" />
+                      </div>
+                      <p className="mt-2 text-sm sm:text-base font-semibold">
+                        {persona.nombre}
+                      </p>
+                      <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                        {persona.estado}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {actividad.map((persona) => (
+                  <div
+                    key={persona.id}
+                    className="bg-[#1B1033] rounded-2xl p-3 sm:p-4"
+                  >
+                    <p className="text-sm font-semibold mb-2">
+                      {persona.nombre}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {ICONOS_DISPONIBLES.map(({ key, icon: Icon }) => {
+                        const seleccionado =
+                          borrador[persona.id]?.icono === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() =>
+                              setBorrador((prev) => ({
+                                ...prev,
+                                [persona.id]: {
+                                  estado:
+                                    prev[persona.id]?.estado ?? persona.estado,
+                                  icono: key,
+                                },
+                              }))
+                            }
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+                              seleccionado
+                                ? "bg-gradient-to-br from-pink-500 to-fuchsia-400 shadow-lg"
+                                : "bg-white/5 hover:bg-white/10"
+                            }`}
+                          >
+                            <Icon size={16} className="text-white" />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={borrador[persona.id]?.estado ?? ""}
+                      onChange={(e) =>
+                        setBorrador((prev) => ({
+                          ...prev,
+                          [persona.id]: {
+                            icono: prev[persona.id]?.icono ?? persona.icono,
+                            estado: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="¿Qué está haciendo?"
+                      maxLength={40}
+                      className="w-full bg-[#2A1847] rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-pink-400"
+                    />
+                  </div>
+                ))}
+
+                <button
+                  onClick={guardarActividad}
+                  disabled={guardandoActividad}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-fuchsia-400 text-white font-semibold py-2.5 rounded-xl text-sm transition-transform active:scale-95 disabled:opacity-60"
+                >
+                  <Check size={16} />
+                  {guardandoActividad ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
             )}
           </div>
         </Reveal>

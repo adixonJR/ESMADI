@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
 //////////////////// COMPONENTES //////////////////////
 
@@ -15,6 +15,8 @@ import Playlist from "./conponents/Playlist";
 import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 import Floo from "./conponents/floo";
 import AgregarMomento from "./conponents/AgregarMomento";
+import Login from "./conponents/Login";
+
 
 //////////////////// NOTIFICACIONES //////////////////////
 
@@ -36,19 +38,45 @@ import Fechas from "./pages/fechas";
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+  // Solicita permiso para enviar notificaciones
+  useEffect(() => {
+    pedirPermisoNotificaciones();
+  }, []);
+
+  if (loading) {
+    return (
+      <LoadingScreen
+        onFinish={() => {
+          setLoading(false);
+          navigate("/Login");
+        }}
+        soundEnabled
+      />
+    );
+  }
 
   // Rutas donde NO se mostrará el footer
-  const rutasSinFooter = ["/album", "/juegos/chispa"];
+  const rutasSinFooter = ["/album", "/juegos/chispa", "/Login"];
+
+  // Rutas donde NO se mostrará el navbar
+  const rutasSinNavbar = ["/Login"];
 
   const ocultarFooter = rutasSinFooter.some((ruta) =>
-    location.pathname.startsWith(ruta)
+    location.pathname.toLowerCase().startsWith(ruta.toLowerCase())
+  );
+
+  const ocultarNavbar = rutasSinNavbar.some((ruta) =>
+    location.pathname.toLowerCase().startsWith(ruta.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-[#1a0f2e] text-white">
-      <Navbar />
+      {!ocultarNavbar && <Navbar />}
 
-      <main className="pt-16 pb-24">
+      <main className={ocultarNavbar ? "pb-24" : "pt-16 pb-24"}>
         <Routes>
           <Route path="/" element={<Inicio />} />
           <Route path="/metas" element={<Metas />} />
@@ -67,6 +95,7 @@ function AppContent() {
           <Route path="/Aniversario" element={<Aniversario />} />
           <Route path="/floo" element={<Floo />} />
           <Route path="/AgregarMomento" element={<AgregarMomento />} />
+          <Route path="/Login" element={<Login />} />
         </Routes>
       </main>
 
@@ -76,22 +105,6 @@ function AppContent() {
 }
 
 function App() {
-  const [loading, setLoading] = useState(true);
-
-  // Solicita permiso para enviar notificaciones
-  useEffect(() => {
-    pedirPermisoNotificaciones();
-  }, []);
-
-  if (loading) {
-    return (
-      <LoadingScreen
-        onFinish={() => setLoading(false)}
-        soundEnabled
-      />
-    );
-  }
-
   return (
     <BrowserRouter>
       <AppContent />
