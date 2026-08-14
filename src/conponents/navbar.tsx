@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import supabase from "../lib/supabase.js";
 
 function Navbar() {
   const [sound, setSound] = useState(true);
@@ -25,6 +26,7 @@ function Navbar() {
   const [notificaciones, setNotificaciones] = useState(true);
   const [visible, setVisible] = useState(true);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -71,6 +73,22 @@ function Navbar() {
     titulo = "Chispa";
     volverA = "/juegos/chispa";
   }
+
+  const handleCerrarSesion = async () => {
+    setCerrandoSesion(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error cerrando sesión:", error);
+      }
+    } catch (err) {
+      console.error("Error cerrando sesión:", err);
+    } finally {
+      setCerrandoSesion(false);
+      setMenuAbierto(false);
+      navigate("/Login");
+    }
+  };
 
   const Toggle = ({ activo }: { activo: boolean }) => (
     <span
@@ -298,11 +316,13 @@ function Navbar() {
             </button>
 
             <button
-              className="flex items-center justify-between px-3 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition text-sm text-red-400"
+              onClick={handleCerrarSesion}
+              disabled={cerrandoSesion}
+              className="flex items-center justify-between px-3 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition text-sm text-red-400 disabled:opacity-60"
             >
               <span className="flex items-center gap-2">
                 <LogOut size={18} />
-                Cerrar sesión
+                {cerrandoSesion ? "Cerrando sesión..." : "Cerrar sesión"}
               </span>
             </button>
           </div>
