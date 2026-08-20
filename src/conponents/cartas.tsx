@@ -407,7 +407,7 @@ function Cartas() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [usuarioActual, setUsuarioActual] = useState(AUTORES[0]);
+  const [usuarioActual] = useState(AUTORES[0]);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [contenido, setContenido] = useState("");

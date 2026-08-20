@@ -140,6 +140,7 @@ function Perfil() {
   // ---------- Carga el perfil y las fotos una vez resuelta la persona ----------
   useEffect(() => {
     if (!personaId) return;
+    const idActual = personaId;
 
     let cancelado = false;
 
@@ -147,11 +148,11 @@ function Perfil() {
       setCargando(true);
 
       const [perfilRes, fotosRes] = await Promise.all([
-        supabase.from("perfil").select("*").eq("id", personaId).maybeSingle(),
+        supabase.from("perfil").select("*").eq("id", idActual).maybeSingle(),
         supabase
           .from("fotos")
           .select("*")
-          .eq("persona_id", personaId)
+          .eq("persona_id", idActual)
           .order("created_at", { ascending: false }),
       ]);
 
@@ -164,11 +165,11 @@ function Perfil() {
         });
       } else {
         // si todavia no existe la fila para esta persona, la creamos
-        const base = NOMBRE_POR_DEFECTO[personaId];
+        const base = NOMBRE_POR_DEFECTO[idActual];
         const { data: nuevo } = await supabase
           .from("perfil")
           .insert({
-            id: personaId,
+            id: idActual,
             nombre_usuario: base.usuario,
             nombre: base.nombre,
             bio: "Nuestros recuerdos juntos",
