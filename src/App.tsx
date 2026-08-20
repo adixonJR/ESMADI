@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import type { Session } from "@supabase/supabase-js";
+import supabase from "./lib/supabase.js";
 
 //////////////////// COMPONENTES //////////////////////
 
@@ -16,7 +18,6 @@ import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 import Floo from "./conponents/floo";
 import AgregarMomento from "./conponents/AgregarMomento";
 import Login from "./conponents/Login";
-
 
 //////////////////// NOTIFICACIONES //////////////////////
 
@@ -40,22 +41,49 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  // Revisa si ya existe una sesión guardada (localStorage) al montar la app
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setSessionChecked(true);
+    });
+
+    // Escucha cambios de sesión: login, logout, refresh de token
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Solicita permiso para enviar notificaciones
   useEffect(() => {
     pedirPermisoNotificaciones();
   }, []);
 
-  if (loading) {
-    return (
-      <LoadingScreen
-        onFinish={() => {
-          setLoading(false);
-          navigate("/Login");
-        }}
-        soundEnabled
-      />
-    );
+  // Solo navega cuando la animación de carga terminó Y ya sabemos si hay sesión.
+  // Esto evita el bug de que LoadingScreen termine antes de que Supabase
+  // responda, lo que siempre mandaba al login aunque hubiera sesión guardada.
+  useEffect(() => {
+    if (loading || !sessionChecked) return;
+
+    const enLogin = location.pathname.toLowerCase() === "/login";
+
+    if (session && enLogin) {
+      navigate("/"); // ya logueado pero está en /Login -> lo saca de ahí
+    } else if (!session && !enLogin) {
+      navigate("/Login"); // sin sesión y no está en /Login -> lo manda ahí
+    }
+  }, [loading, sessionChecked, session, location.pathname, navigate]);
+
+  // La pantalla de carga solo controla la animación; ya NO decide a dónde navegar
+  if (loading || !sessionChecked) {
+    return <LoadingScreen onFinish={() => setLoading(false)} soundEnabled />;
   }
 
   // Rutas donde NO se mostrará el footer

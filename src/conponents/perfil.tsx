@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "
 import { createClient } from "@supabase/supabase-js";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import {
-  ChevronDown,
   Menu,
   Settings,
   Grid3x3,
@@ -13,6 +12,7 @@ import {
   Plus,
   X,
   ImagePlus,
+  Trash2,
 } from "lucide-react";
 
 // ---------- Cliente Supabase ----------
@@ -52,8 +52,15 @@ async function notificarFotoAgregada() {
 type PersonaId = 1 | 2;
 
 const NOMBRE_POR_DEFECTO: Record<PersonaId, { usuario: string; nombre: string }> = {
-  1: { usuario: "persona1", nombre: "Persona 1" },
-  2: { usuario: "persona2", nombre: "Persona 2" },
+  1: { usuario: "adixon", nombre: "Adixon" },
+  2: { usuario: "esmeralda", nombre: "Esmeralda" },
+};
+
+// ---------- Mapeo de email de la cuenta (Supabase Auth) -> personaId ----------
+// Reemplaza estos correos por los reales de cada cuenta.
+const EMAIL_A_PERSONA_ID: Record<string, PersonaId> = {
+  "julcaadixon25@gmail.com": 1,
+  "esmeraldajanampa07@gmail.com": 2,
 };
 
 interface Foto {
@@ -87,17 +94,53 @@ function urlAvatar(path: string | null) {
 }
 
 function Perfil() {
-  const [personaId, setPersonaId] = useState<PersonaId>(1);
+  const [personaId, setPersonaId] = useState<PersonaId | null>(null);
   const [perfil, setPerfil] = useState<PerfilInfo | null>(null);
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorAuth, setErrorAuth] = useState<string | null>(null);
   const [tab, setTab] = useState<"grilla" | "guardados">("grilla");
 
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [mostrarSubir, setMostrarSubir] = useState(false);
+  const [fotoAmpliadaId, setFotoAmpliadaId] = useState<string | null>(null);
 
-  // ---------- Carga cuando cambia la persona seleccionada ----------
+  // ---------- Resuelve la persona a partir de la cuenta autenticada ----------
   useEffect(() => {
+    let cancelado = false;
+
+    async function resolverPersona() {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (cancelado) return;
+
+      if (error || !data.user?.email) {
+        setErrorAuth("No se pudo identificar la sesión");
+        setCargando(false);
+        return;
+      }
+
+      const id = EMAIL_A_PERSONA_ID[data.user.email.toLowerCase()];
+
+      if (!id) {
+        setErrorAuth("Esta cuenta no está vinculada a un perfil");
+        setCargando(false);
+        return;
+      }
+
+      setPersonaId(id);
+    }
+
+    resolverPersona();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // ---------- Carga el perfil y las fotos una vez resuelta la persona ----------
+  useEffect(() => {
+    if (!personaId) return;
+
     let cancelado = false;
 
     async function cargar() {
@@ -152,8 +195,41 @@ function Perfil() {
     };
   }, [personaId]);
 
+  // ---------- Eliminar foto ----------
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+
+  async function eliminarFoto(foto: Foto) {
+    const confirmado = window.confirm("¿Eliminar esta foto? Esta acción no se puede deshacer.");
+    if (!confirmado) return;
+
+    setEliminandoId(foto.id);
+
+    const { error: storageError } = await supabase.storage
+      .from("fotos")
+      .remove([foto.image_path]);
+
+    if (storageError) {
+      setEliminandoId(null);
+      window.alert("No se pudo eliminar la foto. Intenta de nuevo.");
+      return;
+    }
+
+    const { error: dbError } = await supabase.from("fotos").delete().eq("id", foto.id);
+
+    if (dbError) {
+      setEliminandoId(null);
+      window.alert("No se pudo eliminar la foto. Intenta de nuevo.");
+      return;
+    }
+
+    setFotos((prev) => prev.filter((f) => f.id !== foto.id));
+    setEliminandoId(null);
+    setFotoAmpliadaId(null);
+  }
+
   const guardadas = useMemo(() => fotos.filter((f) => f.favorito), [fotos]);
   const fotosMostradas = tab === "grilla" ? fotos : guardadas;
+  const fotoAmpliada = fotos.find((f) => f.id === fotoAmpliadaId) ?? null;
 
   // ---------- Alternar favorito ----------
   async function alternarFavorito(foto: Foto) {
@@ -174,6 +250,14 @@ function Perfil() {
     }
   }
 
+  if (errorAuth) {
+    return (
+      <section className="min-h-screen bg-[#241539] flex items-center justify-center px-6">
+        <p className="text-gray-400 text-sm text-center">{errorAuth}</p>
+      </section>
+    );
+  }
+
   if (cargando || !perfil) {
     return (
       <section className="min-h-screen bg-[#241539] flex items-center justify-center">
@@ -187,10 +271,9 @@ function Perfil() {
       <div className="px-4 sm:px-6 pt-6 pb-28 max-w-md sm:max-w-xl md:max-w-3xl mx-auto">
         {/* ---------- Barra superior ---------- */}
         <div className="flex items-center justify-between mb-5">
-          <button className="flex items-center gap-1 text-white font-bold text-base">
+          <p className="text-white font-bold text-base">
             {perfil.nombre_usuario}
-            <ChevronDown size={16} className="text-gray-300" />
-          </button>
+          </p>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMostrarSubir(true)}
@@ -206,23 +289,6 @@ function Perfil() {
               <Menu size={22} />
             </button>
           </div>
-        </div>
-
-        {/* ---------- Switch: Persona 1 / Persona 2 ---------- */}
-        <div className="flex bg-white/5 rounded-full p-1 mb-5">
-          {([1, 2] as PersonaId[]).map((id) => (
-            <button
-              key={id}
-              onClick={() => setPersonaId(id)}
-              className={`flex-1 text-sm font-semibold rounded-full py-2 transition ${
-                personaId === id
-                  ? "bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {NOMBRE_POR_DEFECTO[id].nombre}
-            </button>
-          ))}
         </div>
 
         {/* ---------- Avatar + estadisticas ---------- */}
@@ -313,14 +379,20 @@ function Perfil() {
             fotosMostradas.map((foto) => (
               <div
                 key={foto.id}
-                className="relative aspect-square bg-white/10 overflow-hidden group"
+                className="relative aspect-square bg-white/10 overflow-hidden"
               >
                 {foto.imagen_url ? (
-                  <img
-                    src={foto.imagen_url}
-                    alt={foto.descripcion}
-                    className="w-full h-full object-cover"
-                  />
+                  <button
+                    onClick={() => setFotoAmpliadaId(foto.id)}
+                    className="w-full h-full block"
+                    title="Ver foto"
+                  >
+                    <img
+                      src={foto.imagen_url}
+                      alt={foto.descripcion}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon size={20} className="text-white/20" />
@@ -328,7 +400,8 @@ function Perfil() {
                 )}
                 <button
                   onClick={() => alternarFavorito(foto)}
-                  className="absolute bottom-1.5 right-1.5 bg-black/50 backdrop-blur-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition"
+                  className="absolute bottom-1.5 right-1.5 bg-black/60 backdrop-blur-sm rounded-full p-1.5 active:scale-90 transition"
+                  title="Favorito"
                 >
                   <Heart
                     size={16}
@@ -351,12 +424,72 @@ function Perfil() {
       )}
 
       {/* ---------- Modal: subir foto ---------- */}
-      {mostrarSubir && (
+      {mostrarSubir && personaId && (
         <SubirFotoModal
           personaId={personaId}
           onClose={() => setMostrarSubir(false)}
           onSubida={(nueva) => setFotos((prev) => [nueva, ...prev])}
         />
+      )}
+
+      {/* ---------- Modal: foto ampliada (aquí se puede eliminar) ---------- */}
+      {fotoAmpliada && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xl flex flex-col items-center justify-center p-4 animar-entrada-fondo">
+          <style>{`
+            @keyframes entradaFondo {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes entradaFoto {
+              from { opacity: 0; transform: scale(0.85); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            .animar-entrada-fondo { animation: entradaFondo 0.2s ease-out; }
+            .animar-entrada-foto { animation: entradaFoto 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+          `}</style>
+
+          <button
+            onClick={() => setFotoAmpliadaId(null)}
+            className="absolute top-4 right-4 text-white bg-white/10 rounded-full p-2 active:scale-90 transition"
+          >
+            <X size={20} />
+          </button>
+
+          {fotoAmpliada.imagen_url && (
+            <img
+              src={fotoAmpliada.imagen_url}
+              alt={fotoAmpliada.descripcion}
+              className="max-w-full max-h-[70vh] object-contain rounded-2xl animar-entrada-foto"
+            />
+          )}
+
+          {fotoAmpliada.descripcion && (
+            <p className="text-white/80 text-sm mt-4 text-center px-4">
+              {fotoAmpliada.descripcion}
+            </p>
+          )}
+
+          <div className="flex items-center gap-4 mt-6">
+            <button
+              onClick={() => alternarFavorito(fotoAmpliada)}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 transition rounded-full px-4 py-2.5 text-white text-sm font-semibold active:scale-95"
+            >
+              <Heart
+                size={18}
+                className={fotoAmpliada.favorito ? "fill-pink-500 text-pink-500" : "text-white"}
+              />
+              Favorito
+            </button>
+            <button
+              onClick={() => eliminarFoto(fotoAmpliada)}
+              disabled={eliminandoId === fotoAmpliada.id}
+              className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 transition rounded-full px-4 py-2.5 text-red-300 text-sm font-semibold active:scale-95 disabled:opacity-50"
+            >
+              <Trash2 size={18} />
+              {eliminandoId === fotoAmpliada.id ? "Eliminando..." : "Eliminar"}
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -375,6 +508,7 @@ function EditarPerfilModal({
   onGuardado: (nuevo: PerfilInfo) => void;
 }) {
   const [nombre, setNombre] = useState(perfil.nombre);
+  const [nombreUsuario, setNombreUsuario] = useState(perfil.nombre_usuario);
   const [bio, setBio] = useState(perfil.bio);
   const [sitio, setSitio] = useState(perfil.sitio);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -409,7 +543,7 @@ function EditarPerfilModal({
 
       const { data, error: updateError } = await supabase
         .from("perfil")
-        .update({ nombre, bio, sitio, avatar_path })
+        .update({ nombre, nombre_usuario: nombreUsuario, bio, sitio, avatar_path })
         .eq("id", perfil.id)
         .select()
         .single();
@@ -426,16 +560,20 @@ function EditarPerfilModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center">
-      <div className="w-full sm:max-w-sm bg-[#2c1a47] rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
+    <div className="fixed inset-0 z-[9999] bg-black/70 flex items-end sm:items-center justify-center">
+      <div className="w-full sm:max-w-sm bg-[#2c1a47] rounded-t-2xl sm:rounded-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 pb-4 shrink-0">
           <h2 className="text-white font-bold text-base">Editar perfil</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          id="form-editar-perfil"
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4 px-5 overflow-y-auto"
+        >
           <div className="flex flex-col items-center gap-2">
             <div className="w-20 h-20 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
               {previewUrl ? (
@@ -460,6 +598,15 @@ function EditarPerfilModal({
           </div>
 
           <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-xs">Nombre de usuario</label>
+            <input
+              value={nombreUsuario}
+              onChange={(e) => setNombreUsuario(e.target.value)}
+              className="bg-white/10 text-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label className="text-gray-400 text-xs">Biografia</label>
             <textarea
               value={bio}
@@ -469,7 +616,7 @@ function EditarPerfilModal({
             />
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 pb-2">
             <label className="text-gray-400 text-xs">Sitio web</label>
             <input
               value={sitio}
@@ -479,15 +626,18 @@ function EditarPerfilModal({
           </div>
 
           {error && <p className="text-red-400 text-xs">{error}</p>}
+        </form>
 
+        <div className="p-5 pt-3 shrink-0 border-t border-white/10">
           <button
             type="submit"
+            form="form-editar-perfil"
             disabled={guardando}
-            className="mt-1 bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 text-white font-semibold rounded-xl py-3 text-sm disabled:opacity-50"
+            className="w-full bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 text-white font-semibold rounded-xl py-3 text-sm disabled:opacity-50"
           >
             {guardando ? "Guardando..." : "Guardar cambios"}
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -561,7 +711,7 @@ function SubirFotoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[9999] bg-black/70 flex items-end sm:items-center justify-center">
       <div className="w-full sm:max-w-sm bg-[#2c1a47] rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-bold text-base">

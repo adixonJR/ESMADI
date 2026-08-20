@@ -30,6 +30,16 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabase.js";
 
+/* ---------- Mapeo de email de la cuenta (Supabase Auth) -> personaId ----------
+   Mismo mapeo usado en Perfil.tsx. Si más adelante lo cambias ahí,
+   recuerda actualizarlo aquí también (o mejor, muévelo a un archivo
+   compartido, ej. src/lib/personas.ts, e impórtalo en ambos lados). */
+type PersonaId = 1 | 2;
+const EMAIL_A_PERSONA_ID: Record<string, PersonaId> = {
+  "julcaadixon25@gmail.com": 1,
+  "esmeraldajanampa07@gmail.com": 2,
+};
+
 /* ---------- Helpers de fechas ---------- */
 function diasEntre(desde: Date, hasta: Date) {
   const a = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
@@ -182,6 +192,39 @@ function Inicio() {
   const indiceDelDia = diaDelAnio(hoy);
   const mensaje = mensajes[indiceDelDia % mensajes.length];
 
+  /* ---------- Nombre del usuario autenticado (desde tabla perfil) ---------- */
+  const [nombreUsuario, setNombreUsuario] = useState<string | null>(null);
+
+  useEffect(() => {
+    let activo = true;
+
+    const cargarNombre = async () => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (!activo) return;
+
+      if (authError || !authData.user?.email) return;
+
+      const personaId = EMAIL_A_PERSONA_ID[authData.user.email.toLowerCase()];
+      if (!personaId) return;
+
+      const { data, error } = await supabase
+        .from("perfil")
+        .select("nombre")
+        .eq("id", personaId)
+        .maybeSingle();
+
+      if (!activo) return;
+      if (error || !data) return;
+
+      setNombreUsuario(data.nombre);
+    };
+
+    cargarNombre();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   /* ---------- ¿Qué estamos haciendo? (editable, desde Supabase) ---------- */
   const [actividad, setActividad] = useState<ActividadPersona[]>([]);
   const [cargandoActividad, setCargandoActividad] = useState(true);
@@ -215,8 +258,38 @@ function Inicio() {
 
     cargarActividad();
 
+    // Suscripción en tiempo real: si la otra persona edita su estado desde
+    // su celular, este canal avisa y actualizamos la pantalla sin recargar.
+    const canal = supabase
+      .channel("actividad_actual_cambios")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "actividad_actual" },
+        (payload) => {
+          if (!activo) return;
+
+          if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+            const fila = payload.new as ActividadPersona;
+            setActividad((prev) => {
+              const existe = prev.some((p) => p.id === fila.id);
+              if (existe) {
+                return prev.map((p) => (p.id === fila.id ? fila : p));
+              }
+              return [...prev, fila].sort((a, b) =>
+                a.persona.localeCompare(b.persona)
+              );
+            });
+          } else if (payload.eventType === "DELETE") {
+            const fila = payload.old as ActividadPersona;
+            setActividad((prev) => prev.filter((p) => p.id !== fila.id));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       activo = false;
+      supabase.removeChannel(canal);
     };
   }, []);
 
@@ -391,7 +464,11 @@ function Inicio() {
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold">
               ¡Hola,
-              <span className="text-pink-400"> Adixon!</span> ❤️
+              <span className="text-pink-400">
+                {" "}
+                {nombreUsuario ?? "..."}!
+              </span>{" "}
+              ❤️
             </h2>
             <p className="text-gray-400 mt-1 text-sm sm:text-base">
               Bienvenido a nuestro pequeño mundo.
