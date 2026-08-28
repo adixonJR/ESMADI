@@ -103,10 +103,13 @@ function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 flex justify-center transition-transform duration-300 ease-in-out ${
-          visible ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
+  className={`fixed left-0 right-0 z-50 flex justify-center transition-transform duration-300 ease-in-out ${
+    visible ? "translate-y-0" : "-translate-y-full"
+  }`}
+  style={{
+    top: "env(safe-area-inset-top, 24px)",
+  }}
+>
         <style>{`
           @keyframes flame-flicker {
             0%, 100% {
