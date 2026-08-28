@@ -106,7 +106,7 @@ function Nosotros() {
   }, []);
 
   return (
-    <section className="px-6 py-10 bg-[#120B1F]">
+    <section className="px-6 py-10">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
         .fuente-elegante { font-family: 'Playfair Display', Georgia, serif; }
@@ -119,25 +119,25 @@ function Nosotros() {
             <Heart size={40} className="text-[#FF7EB6]" strokeWidth={1.5} />
           </div>
         </div>
-        <h1 className="fuente-elegante text-4xl sm:text-5xl font-bold tracking-tight text-white">
+        <h1 className="fuente-elegante text-4xl sm:text-5xl font-bold tracking-tight">
           Nosotros
         </h1>
         <div className="w-14 h-px bg-[#B388FF]/60 mx-auto mt-4 mb-4" />
-        <p className="text-[#C7C7D3] text-sm sm:text-base tracking-wide">
+        <p className="text-sm sm:text-base tracking-wide opacity-70">
           Nuestra historia, nuestros recuerdos y nuestro futuro
         </p>
       </div>
 
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Historia */}
-        <div className="bg-[#2B2145] rounded-3xl p-8 border border-[#453A67]">
+        <div className="rounded-3xl p-8 border border-[#453A67]/40">
           <div className="flex items-center gap-3 mb-5">
             <BookHeart className="text-[#FF7EB6]" size={28} strokeWidth={1.5} />
-            <h2 className="fuente-elegante text-2xl font-semibold text-white">
+            <h2 className="fuente-elegante text-2xl font-semibold">
               Nuestra historia
             </h2>
           </div>
-          <p className="text-[#C7C7D3] leading-relaxed">
+          <p className="leading-relaxed opacity-80">
             Todo comenzó con un momento especial que cambió nuestras vidas.
             Desde ese día hemos creado recuerdos, superado retos y construido
             una historia juntos ❤️
@@ -145,10 +145,10 @@ function Nosotros() {
         </div>
 
         {/* Timeline */}
-        <div className="bg-[#2B2145] rounded-3xl p-8 border border-[#453A67]">
+        <div className="rounded-3xl p-8 border border-[#453A67]/40">
           <div className="flex items-center gap-3 mb-8">
             <Clock className="text-[#B388FF]" size={28} strokeWidth={1.5} />
-            <h2 className="fuente-elegante text-2xl font-semibold text-white">
+            <h2 className="fuente-elegante text-2xl font-semibold">
               Línea del tiempo
             </h2>
           </div>
@@ -170,7 +170,7 @@ function Nosotros() {
                 >
                   {/* Segmento de línea hacia el siguiente punto */}
                   {!esUltimo && (
-                    <div className="absolute left-6 top-14 bottom-0 w-px bg-[#453A67] overflow-hidden">
+                    <div className="absolute left-6 top-14 bottom-0 w-px bg-[#453A67]/40 overflow-hidden">
                       <div
                         className="w-full bg-[#FF7EB6] transition-all duration-700 ease-out"
                         style={{
@@ -183,7 +183,7 @@ function Nosotros() {
 
                   {/* Medallón con ícono */}
                   <div
-                    className="relative z-10 bg-[#1E1534] rounded-full p-3 border border-[#FF7EB6]/40 transition-all duration-500 ease-out"
+                    className="relative z-10 rounded-full p-3 border border-[#FF7EB6]/40 transition-all duration-500 ease-out"
                     style={{
                       opacity: visible ? 1 : 0,
                       transform: visible ? "scale(1)" : "scale(0.5)",
@@ -202,14 +202,14 @@ function Nosotros() {
                     }}
                   >
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <h3 className="fuente-elegante text-lg sm:text-xl font-semibold text-white">
+                      <h3 className="fuente-elegante text-lg sm:text-xl font-semibold">
                         {momento.titulo}
                       </h3>
                       <span className="text-xs sm:text-sm text-[#B388FF] font-medium tracking-wide">
                         {momento.fecha}
                       </span>
                     </div>
-                    <p className="text-[#C7C7D3] mt-1.5 text-sm sm:text-base leading-relaxed">
+                    <p className="mt-1.5 text-sm sm:text-base leading-relaxed opacity-80">
                       {momento.descripcion}
                     </p>
                   </div>
@@ -229,17 +229,17 @@ function Nosotros() {
         {/* Álbum */}
         <Link
           to="/album"
-          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#B388FF]/50 transition"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#B388FF]/50 transition"
         >
           <div className="flex items-center gap-4">
             <div className="border border-[#B388FF]/40 rounded-full p-3">
               <Images size={30} className="text-[#B388FF]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
                 Álbum de recuerdos
               </h2>
-              <p className="text-[#C7C7D3] text-sm sm:text-base">
+              <p className="text-sm sm:text-base opacity-80">
                 Guarda nuestras fotos favoritas
               </p>
             </div>
@@ -249,17 +249,17 @@ function Nosotros() {
         {/* Cartas */}
         <Link
           to="/cartas"
-          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#FF7EB6]/50 transition"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#FF7EB6]/50 transition"
         >
           <div className="flex items-center gap-4">
             <div className="border border-[#FF7EB6]/40 rounded-full p-3">
               <Mail size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
                 Cartas
               </h2>
-              <p className="text-[#C7C7D3] text-sm sm:text-base">
+              <p className="text-sm sm:text-base opacity-80">
                 Escribe mensajes especiales
               </p>
             </div>
@@ -269,17 +269,17 @@ function Nosotros() {
         {/* Playlist */}
         <Link
           to="/playlist"
-          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#B388FF]/50 transition"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#B388FF]/50 transition"
         >
           <div className="flex items-center gap-4">
             <div className="border border-[#B388FF]/40 rounded-full p-3">
               <Music size={30} className="text-[#B388FF]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
                 Playlist
               </h2>
-              <p className="text-[#C7C7D3] text-sm sm:text-base">
+              <p className="text-sm sm:text-base opacity-80">
                 Las canciones de nuestra historia
               </p>
             </div>
@@ -289,17 +289,17 @@ function Nosotros() {
         {/* Cápsula del tiempo */}
         <Link
           to="/capsula-del-tiempo"
-          className="block bg-[#2B2145] border border-[#453A67] rounded-3xl p-7 hover:border-[#FF7EB6]/50 transition"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#FF7EB6]/50 transition"
         >
           <div className="flex items-center gap-4">
             <div className="border border-[#FF7EB6]/40 rounded-full p-3">
               <Hourglass size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold text-white">
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
                 Cápsula del tiempo
               </h2>
-              <p className="text-[#C7C7D3] text-sm sm:text-base">
+              <p className="text-sm sm:text-base opacity-80">
                 Mensajes para abrir en el futuro
               </p>
             </div>

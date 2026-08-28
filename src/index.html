@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lado A — el disco que gira con tu scroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0c;
+    --paper:#f3ede3;
+    --ink:#eae6df;
+    --muted:#8a8680;
+    --amber:#e2a33f;
+    --rust:#b1432f;
+    --groove:#1d1d1f;
+    --groove-light:#2a2a2d;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--amber); color:#1a1200; }
+
+  /* ---------- INTRO ---------- */
+  .intro{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:flex-start;
+    padding:8vw;
+    position:relative;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.75rem;
+    letter-spacing:0.25em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:1.4rem;
+  }
+  .intro h1{
+    font-family:'Fraunces',serif;
+    font-weight:300;
+    font-style:italic;
+    font-size:clamp(2.6rem,8vw,6.5rem);
+    line-height:0.98;
+    margin:0 0 1.2rem;
+    max-width:14ch;
+  }
+  .intro h1 em{
+    font-style:normal;
+    font-weight:600;
+    color:var(--amber);
+  }
+  .intro p{
+    max-width:38ch;
+    color:var(--muted);
+    font-size:1.05rem;
+    line-height:1.6;
+  }
+  .scroll-cue{
+    position:absolute;
+    bottom:6vh; left:8vw;
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+    display:flex; align-items:center; gap:0.6rem;
+  }
+  .scroll-cue .bar{
+    width:1px; height:34px; background:var(--muted);
+    position:relative; overflow:hidden;
+  }
+  .scroll-cue .bar::after{
+    content:''; position:absolute; top:0; left:0; width:100%; height:40%;
+    background:var(--amber); animation:slide 1.6s ease-in-out infinite;
+  }
+  @keyframes slide{ 0%{top:-40%} 100%{top:100%} }
+
+  /* ---------- VINYL WRAP ---------- */
+  .vinyl-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    align-items:start;
+    max-width:1240px;
+    margin:0 auto;
+    padding:0 8vw;
+  }
+  .stage{
+    position:sticky;
+    top:0;
+    height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    perspective:1400px;
+  }
+  .record{
+    width:min(30vw,380px);
+    aspect-ratio:1/1;
+    border-radius:50%;
+    position:relative;
+    transform-style:preserve-3d;
+    will-change:transform;
+    background:
+      repeating-radial-gradient(circle at 50% 50%,
+        var(--groove) 0 2px,
+        var(--groove-light) 2px 4px
+      );
+    box-shadow:
+      0 40px 80px -20px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.03) inset;
+  }
+  .record::before{
+    content:'';
+    position:absolute; inset:0; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.10), transparent 45%);
+  }
+  .label{
+    position:absolute;
+    top:50%; left:50%;
+    width:34%; aspect-ratio:1/1;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, var(--amber), var(--rust) 80%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px rgba(0,0,0,0.4), 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .label svg{ width:88%; height:88%; }
+  .label-text{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9.2px;
+    letter-spacing:2px;
+    fill:#1a1200;
+  }
+  .spindle{
+    position:absolute; top:50%; left:50%;
+    width:10px; height:10px; border-radius:50%;
+    background:#0a0a0a; transform:translate(-50%,-50%);
+    box-shadow:0 0 0 3px var(--bg);
+  }
+
+  /* ---------- TRACKS ---------- */
+  .tracks{ padding:6vh 0 30vh; }
+  .track{
+    min-height:80vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:6vh 0;
+    opacity:0;
+    transform:translateY(40px) rotateX(6deg);
+    transform-origin:left center;
+    transition:opacity 0.8s ease, transform 0.8s cubic-bezier(.2,.7,.3,1);
+  }
+  .track.in-view{
+    opacity:1;
+    transform:translateY(0) rotateX(0deg);
+  }
+  .track .num{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--amber);
+    font-size:0.8rem;
+    letter-spacing:0.15em;
+    margin-bottom:0.8rem;
+  }
+  .track h2{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:clamp(1.8rem,3.4vw,2.6rem);
+    margin:0 0 0.9rem;
+  }
+  .track p{
+    color:var(--muted);
+    line-height:1.7;
+    max-width:44ch;
+    font-size:0.98rem;
+  }
+  .track .dur{
+    margin-top:1.2rem;
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.75rem;
+    color:var(--muted);
+  }
+
+  /* ---------- OUTRO ---------- */
+  .outro{
+    max-width:1240px;
+    margin:0 auto;
+    padding:14vh 8vw 12vh;
+    border-top:1px solid rgba(255,255,255,0.08);
+    text-align:center;
+  }
+  .outro h3{
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-weight:300;
+    font-size:clamp(1.6rem,4vw,2.4rem);
+    color:var(--amber);
+  }
+  .outro span{
+    display:block;
+    margin-top:0.6rem;
+    color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+    font-size:0.78rem;
+  }
+
+  @media (max-width:820px){
+    .vinyl-wrap{ grid-template-columns:1fr; }
+    .stage{ height:46vh; top:0; }
+    .record{ width:44vw; }
+    .tracks{ padding-top:0; }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .record{ transform:none !important; }
+    .track{ transition:opacity 0.4s ease; transform:none !important; }
+    .scroll-cue .bar::after{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+  <section class="intro">
+    <div class="eyebrow">Demo — scroll 3D</div>
+    <h1>El disco gira <em>contigo</em>, no con el tiempo.</h1>
+    <p>Baja con el scroll: el vinilo inclina y rota en 3D según tu posición, y cada tema entra en perspectiva desde el lado.</p>
+    <div class="scroll-cue"><div class="bar"></div>desliza</div>
+  </section>
+
+  <div class="vinyl-wrap">
+    <aside class="stage">
+      <div class="record" id="record">
+        <div class="label">
+          <svg viewBox="0 0 100 100">
+            <path id="curve" d="M 10,50 A 40,40 0 1,1 90,50 A 40,40 0 1,1 10,50" fill="none"/>
+            <text class="label-text">
+              <textPath href="#curve" startOffset="0%">LADO A · DEMO SCROLL 3D · LADO A · DEMO SCROLL 3D ·</textPath>
+            </text>
+          </svg>
+        </div>
+        <div class="spindle"></div>
+      </div>
+    </aside>
+
+    <div class="tracks">
+      <section class="track" data-tilt-x="-8" data-tilt-y="10">
+        <div class="num">01</div>
+        <h2>Perspectiva</h2>
+        <p>El contenedor del disco tiene <code>perspective</code> en CSS. Sin eso, cualquier <code>rotateX/rotateY</code> se ve plano: la perspectiva es lo que crea la ilusión de profundidad.</p>
+        <div class="dur">3:12</div>
+      </section>
+
+      <section class="track" data-tilt-x="6" data-tilt-y="-12">
+        <div class="num">02</div>
+        <h2>Inclinación por scroll</h2>
+        <p>En JS calculamos qué tan cerca está cada sección del centro de la pantalla y usamos eso para interpolar el ángulo del disco: <code>rotateX</code> y <code>rotateY</code> cambian suavemente en cada frame.</p>
+        <div class="dur">4:05</div>
+      </section>
+
+      <section class="track" data-tilt-x="-10" data-tilt-y="4">
+        <div class="num">03</div>
+        <h2>Giro continuo</h2>
+        <p>Además de inclinarse, el disco gira sin parar según el scroll total acumulado (<code>rotateZ</code>), como si fuera una tornamesa real que avanza al ritmo de tu lectura.</p>
+        <div class="dur">2:48</div>
+      </section>
+
+      <section class="track" data-tilt-x="8" data-tilt-y="-6">
+        <div class="num">04</div>
+        <h2>Entradas con profundidad</h2>
+        <p>Cada bloque de texto aparece con un <code>IntersectionObserver</code>: al entrar en pantalla suma opacidad y endereza su propia rotación 3D, como si emergiera de la pila.</p>
+        <div class="dur">3:33</div>
+      </section>
+
+      <section class="track" data-tilt-x="0" data-tilt-y="0">
+        <div class="num">05</div>
+        <h2>Solo CSS + JS vanilla</h2>
+        <p>Sin librerías: un <code>scroll</code>/<code>requestAnimationFrame</code> y un puñado de <code>transform</code> bastan para lograr el efecto. Ábrelo, inspecciona el código y ajusta los ángulos a tu gusto.</p>
+        <div class="dur">4:50</div>
+      </section>
+    </div>
+  </div>
+
+  <section class="outro">
+    <h3>Fin del lado A</h3>
+    <span>Vuelve arriba y desliza otra vez para sentir el giro</span>
+  </section>
+
+<script>
+  const record = document.getElementById('record');
+  const tracks = Array.from(document.querySelectorAll('.track'));
+  let ticking = false;
+
+  function currentTilt(){
+    const centerY = window.innerHeight / 2;
+    let closest = null;
+    let closestDist = Infinity;
+
+    tracks.forEach(t => {
+      const r = t.getBoundingClientRect();
+      const trackCenter = r.top + r.height / 2;
+      const dist = Math.abs(trackCenter - centerY);
+      if (dist < closestDist){
+        closestDist = dist;
+        closest = t;
+      }
+    });
+
+    if (!closest) return { x:0, y:0 };
+    return {
+      x: parseFloat(closest.dataset.tiltX) || 0,
+      y: parseFloat(closest.dataset.tiltY) || 0
+    };
+  }
+
+  function updateRecord(){
+    const { x, y } = currentTilt();
+    const spin = window.scrollY * 0.12; // rotación continua ligada al scroll total
+    record.style.transform =
+      `rotateX(${x}deg) rotateY(${y}deg) rotateZ(${spin}deg)`;
+    ticking = false;
+  }
+
+  function onScroll(){
+    if (!ticking){
+      requestAnimationFrame(updateRecord);
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', onScroll);
+  updateRecord();
+
+  // Revelado de cada track al entrar en viewport
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting){
+        entry.target.classList.add('in-view');
+      }
+    });
+  }, { threshold:0.25 });
+
+  tracks.forEach(t => observer.observe(t));
+</script>
+
+</body>
+</html>

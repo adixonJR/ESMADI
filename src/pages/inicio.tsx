@@ -195,10 +195,13 @@ function Inicio() {
   /* ---------- Nombre del usuario autenticado (desde tabla perfil) ---------- */
   const [nombreUsuario, setNombreUsuario] = useState<string | null>(null);
 
+  /* ---------- Avatar del usuario autenticado (desde tabla perfil) ---------- */
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   useEffect(() => {
     let activo = true;
 
-    const cargarNombre = async () => {
+    const cargarPerfil = async () => {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (!activo) return;
 
@@ -209,7 +212,7 @@ function Inicio() {
 
       const { data, error } = await supabase
         .from("perfil")
-        .select("nombre")
+        .select("nombre, avatar_path")
         .eq("id", personaId)
         .maybeSingle();
 
@@ -217,9 +220,18 @@ function Inicio() {
       if (error || !data) return;
 
       setNombreUsuario(data.nombre);
+
+      if (data.avatar_path) {
+        const { data: publicUrlData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(data.avatar_path);
+        setAvatarUrl(publicUrlData?.publicUrl ?? null);
+      } else {
+        setAvatarUrl(null);
+      }
     };
 
-    cargarNombre();
+    cargarPerfil();
     return () => {
       activo = false;
     };
@@ -476,21 +488,29 @@ function Inicio() {
           </div>
 
           <Link
-  to="/perfil"
-  className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 transition-transform duration-150 active:scale-90 hover:scale-105"
->
-  <div className="w-full h-full rounded-full bg-[#1B1033] flex items-center justify-center overflow-hidden">
-    <div className="relative w-[22px] h-[22px]">
-      {/* Cabeza */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-0 w-[10px] h-[10px] rounded-full bg-pink-300" />
-      {/* Cuerpo / hombros */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[20px] h-[11px] bg-pink-300"
-        style={{ borderRadius: "50% 50% 0 0 / 100% 100% 0 0" }}
-      />
-    </div>
-  </div>
-</Link>
+            to="/perfil"
+            className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-pink-500 via-fuchsia-500 to-purple-500 transition-transform duration-150 active:scale-90 hover:scale-105"
+          >
+            <div className="w-full h-full rounded-full bg-[#1B1033] flex items-center justify-center overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Foto de perfil"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="relative w-[22px] h-[22px]">
+                  {/* Cabeza */}
+                  <div className="absolute left-1/2 -translate-x-1/2 top-0 w-[10px] h-[10px] rounded-full bg-pink-300" />
+                  {/* Cuerpo / hombros */}
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[20px] h-[11px] bg-pink-300"
+                    style={{ borderRadius: "50% 50% 0 0 / 100% 100% 0 0" }}
+                  />
+                </div>
+              )}
+            </div>
+          </Link>
         </Reveal>
 
         {/* Banner */}
