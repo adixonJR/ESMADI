@@ -18,6 +18,9 @@ import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 import Floo from "./conponents/floo";
 import AgregarMomento from "./conponents/AgregarMomento";
 import Login from "./conponents/Login";
+import Comidas from "./conponents/Comidas"
+import PeliculasSeries from "./conponents/PeliculasSeries";
+
 
 //////////////////// NOTIFICACIONES //////////////////////
 
@@ -124,6 +127,8 @@ function AppContent() {
           <Route path="/floo" element={<Floo />} />
           <Route path="/AgregarMomento" element={<AgregarMomento />} />
           <Route path="/Login" element={<Login />} />
+          <Route path="/Comidas" element={<Comidas />} />
+          <Route path="/PeliculasSeries" element={<PeliculasSeries />} />
         </Routes>
       </main>
 

@@ -15,6 +15,8 @@ import {
   Gem,
   Music,
   Hourglass,
+  Utensils,
+  Clapperboard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -281,6 +283,46 @@ function Nosotros() {
               </h2>
               <p className="text-sm sm:text-base opacity-80">
                 Las canciones de nuestra historia
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Comidas */}
+        <Link
+          to="/comidas"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#FF7EB6]/50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="border border-[#FF7EB6]/40 rounded-full p-3">
+              <Utensils size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+                Comidas
+              </h2>
+              <p className="text-sm sm:text-base opacity-80">
+                Nuestros restaurantes y platos favoritos
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Películas y series */}
+        <Link
+          to="/PeliculasSeries"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#B388FF]/50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="border border-[#B388FF]/40 rounded-full p-3">
+              <Clapperboard size={30} className="text-[#B388FF]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+                Películas y series
+              </h2>
+              <p className="text-sm sm:text-base opacity-80">
+                Lo que vimos juntos y lo que sigue en la lista
               </p>
             </div>
           </div>
