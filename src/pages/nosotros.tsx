@@ -17,6 +17,7 @@ import {
   Hourglass,
   Utensils,
   Clapperboard,
+  Box,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -323,6 +324,26 @@ function Nosotros() {
               </h2>
               <p className="text-sm sm:text-base opacity-80">
                 Lo que vimos juntos y lo que sigue en la lista
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Figura 3D */}
+        <Link
+          to="/Figura"
+          className="block rounded-3xl p-7 border border-[#453A67]/40 hover:border-[#FF7EB6]/50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="border border-[#FF7EB6]/40 rounded-full p-3">
+              <Box size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+                Figura 3D
+              </h2>
+              <p className="text-sm sm:text-base opacity-80">
+                Un recuerdo nuestro hecho realidad en 3D
               </p>
             </div>
           </div>

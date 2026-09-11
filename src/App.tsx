@@ -20,7 +20,7 @@ import AgregarMomento from "./conponents/AgregarMomento";
 import Login from "./conponents/Login";
 import Comidas from "./conponents/Comidas"
 import PeliculasSeries from "./conponents/PeliculasSeries";
-
+import Figura from "./conponents/Figura";
 
 //////////////////// NOTIFICACIONES //////////////////////
 
@@ -129,6 +129,7 @@ function AppContent() {
           <Route path="/Login" element={<Login />} />
           <Route path="/Comidas" element={<Comidas />} />
           <Route path="/PeliculasSeries" element={<PeliculasSeries />} />
+          <Route path="/Figura" element={<Figura />} />
         </Routes>
       </main>
 

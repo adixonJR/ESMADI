@@ -20,10 +20,6 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import supabase from "../lib/supabase.js";
 
-// Alto del header (h-16 = 4rem) + el mismo offset superior que usa el <header>.
-// Se reutiliza para el espaciador de abajo, así ambos quedan siempre sincronizados.
-const ALTO_NAVBAR = "calc(4rem + env(safe-area-inset-top, 24px))";
-
 function Navbar() {
   const [sound, setSound] = useState(true);
   const [vibracion, setVibracion] = useState(true);
@@ -190,14 +186,6 @@ function Navbar() {
         </div>
       </header>
 
-      {/*
-        Espaciador: como el <header> está en "fixed", no ocupa espacio en el
-        flujo normal del documento y por eso tapa el contenido de abajo. Este
-        div, del mismo alto (4rem + el offset superior del header), reserva
-        ese espacio para que la pantalla recién empiece donde termina el navbar.
-      */}
-      <div aria-hidden="true" style={{ height: ALTO_NAVBAR }} />
-
       {/* Overlay */}
       <div
         onClick={() => setMenuAbierto(false)}
@@ -340,7 +328,7 @@ function Navbar() {
                 {cerrandoSesion ? "Cerrando sesión..." : "Cerrar sesión"}
               </span>
             </button>
-          </div>
+          </div>  
         </div>
       </aside>
     </>
