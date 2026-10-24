@@ -146,7 +146,7 @@ function Navbar() {
           }
         `}</style>
 
-        <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between bg-[#1a0f2ecc] backdrop-blur-xl border-b border-white/10">
+        <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
           {enJuego ? (
             <button onClick={() => navigate(volverA)} className="p-2 -ml-2">
               <ArrowLeft size={20} />

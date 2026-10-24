@@ -18,7 +18,7 @@ import CapsulaDelTiempo from "./conponents/CapsulaDelTiempo";
 import Floo from "./conponents/floo";
 import AgregarMomento from "./conponents/AgregarMomento";
 import Login from "./conponents/Login";
-import Comidas from "./conponents/Comidas"
+import Comidas from "./conponents/Comidas";
 import PeliculasSeries from "./conponents/PeliculasSeries";
 import Figura from "./conponents/Figura";
 
@@ -70,21 +70,18 @@ function AppContent() {
   }, []);
 
   // Solo navega cuando la animación de carga terminó Y ya sabemos si hay sesión.
-  // Esto evita el bug de que LoadingScreen termine antes de que Supabase
-  // responda, lo que siempre mandaba al login aunque hubiera sesión guardada.
   useEffect(() => {
     if (loading || !sessionChecked) return;
 
     const enLogin = location.pathname.toLowerCase() === "/login";
 
     if (session && enLogin) {
-      navigate("/"); // ya logueado pero está en /Login -> lo saca de ahí
+      navigate("/");
     } else if (!session && !enLogin) {
-      navigate("/Login"); // sin sesión y no está en /Login -> lo manda ahí
+      navigate("/Login");
     }
   }, [loading, sessionChecked, session, location.pathname, navigate]);
 
-  // La pantalla de carga solo controla la animación; ya NO decide a dónde navegar
   if (loading || !sessionChecked) {
     return <LoadingScreen onFinish={() => setLoading(false)} soundEnabled />;
   }
@@ -107,7 +104,14 @@ function AppContent() {
     <div className="min-h-screen bg-[#1a0f2e] text-white">
       {!ocultarNavbar && <Navbar />}
 
-      <main className={ocultarNavbar ? "pb-24" : "pt-16 pb-24"}>
+      <main
+        className="pb-24"
+        style={{
+          paddingTop: ocultarNavbar
+            ? 0
+            : "calc(max(env(safe-area-inset-top, 0px), 28px) + 64px + 16px)",
+        }}
+      >
         <Routes>
           <Route path="/" element={<Inicio />} />
           <Route path="/metas" element={<Metas />} />
