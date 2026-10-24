@@ -480,7 +480,7 @@ function Inicio() {
                 {" "}
                 {nombreUsuario ?? "..."}!
               </span>{" "}
-              ❤️
+              
             </h2>
             <p className="text-gray-400 mt-1 text-sm sm:text-base">
               Bienvenido a nuestro pequeño mundo.
@@ -516,10 +516,10 @@ function Inicio() {
         {/* Banner */}
         <Reveal className="mt-6" delay={80}>
           <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-orange-400 shadow-xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
+            <div className="flex flex-row items-center justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-bold">
-                  Nuestro Espacio ❤️
+                  Nuestro Espacio 
                 </h1>
                 <p className="text-white/90 mt-2 text-sm sm:text-base">
                   <ContadorAnimado valor={diasJuntos} /> días creando recuerdos juntos.
@@ -572,47 +572,61 @@ function Inicio() {
           </div>
         </Reveal>
 
-        {/* Recuerdo (aleatorio, desde Supabase) */}
+       {/* Recuerdo (aleatorio, desde Supabase) */}
         <Reveal className="mt-5">
-          <div className="rounded-3xl overflow-hidden bg-gradient-to-r from-purple-700 to-pink-700">
-            <div className="flex items-center gap-3 p-4 sm:p-5 pb-0">
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-purple-700 to-pink-700 shadow-xl min-h-[22rem] sm:min-h-[26rem] flex flex-col">
+            {/* Foto de fondo */}
+            {!cargandoRecuerdo && recuerdo && recuerdoUrl && (
+              <>
+                {!imagenCargada && (
+                  <div className="absolute inset-0 brillo-esqueleto" />
+                )}
+                <img
+                  src={recuerdoUrl}
+                  alt={recuerdo.descripcion || "Recuerdo"}
+                  onLoad={() => setImagenCargada(true)}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                    imagenCargada ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              </>
+            )}
+
+            {/* Degradado para que el texto se lea sobre la foto */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/80" />
+
+            {/* Título */}
+            <div className="relative z-10 flex items-center gap-3 p-4 sm:p-5">
               <Camera className="text-white" />
               <h3 className="font-bold text-lg sm:text-xl">
                 Recuerdo del día
               </h3>
             </div>
 
-            {cargandoRecuerdo ? (
-              <div className="p-4 sm:p-5 pt-4 space-y-3">
-                <div className="w-full h-48 sm:h-56 rounded-2xl brillo-esqueleto" />
-                <div className="h-3.5 w-3/4 rounded-full brillo-esqueleto" />
-              </div>
-            ) : recuerdo ? (
-              <>
-                {recuerdoUrl && (
-                  <div className="relative w-full h-48 sm:h-56 mt-4 overflow-hidden">
-                    {!imagenCargada && (
-                      <div className="absolute inset-0 brillo-esqueleto" />
-                    )}
-                    <img
-                      src={recuerdoUrl}
-                      alt={recuerdo.descripcion || "Recuerdo"}
-                      onLoad={() => setImagenCargada(true)}
-                      className={`w-full h-full object-cover transition-opacity duration-500 ${
-                        imagenCargada ? "opacity-100" : "opacity-0"
-                      }`}
-                    />
+            {/* Contenido abajo */}
+            <div className="relative z-10 mt-auto p-4 sm:p-5">
+              {cargandoRecuerdo ? (
+                <div className="space-y-3">
+                  <div className="h-3.5 w-3/4 rounded-full brillo-esqueleto" />
+                  <div className="h-3 w-1/2 rounded-full brillo-esqueleto" />
+                </div>
+              ) : recuerdo ? (
+                <div className="rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 p-4">
+                  <p className="text-white text-sm sm:text-base leading-relaxed">
+                    {recuerdo.descripcion || ""}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-white/75 text-xs sm:text-sm">
+                    <span>📅 15 de marzo de 2024</span>
+                    <span>🕐 8:30 p. m.</span>
                   </div>
-                )}
-                <p className="text-white/90 text-sm sm:text-base p-4 sm:p-5 pt-3">
-                  {recuerdo.descripcion || "Un recuerdo especial ❤️"}
+                </div>
+              ) : (
+                <p className="text-white/80 text-sm sm:text-base">
+                  Aún no hay recuerdos guardados en el álbum.
                 </p>
-              </>
-            ) : (
-              <p className="mt-4 text-white/80 text-sm sm:text-base p-4 sm:p-5 pt-2">
-                Aún no hay recuerdos guardados en el álbum.
-              </p>
-            )}
+              )}
+            </div>
           </div>
         </Reveal>
 
@@ -621,7 +635,7 @@ function Inicio() {
           <div className="bg-[#2A1847] rounded-3xl p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg sm:text-xl">
-                ¿Qué estamos haciendo? 👀
+                ¿Qué estamos haciendo? 
               </h3>
 
               {!editandoActividad ? (

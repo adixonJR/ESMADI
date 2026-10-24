@@ -102,14 +102,13 @@ function Navbar() {
 
   return (
     <>
-       <header
+      <header
         className={`fixed top-0 left-0 right-0 z-50 flex justify-center bg-[#1a0f2ecc] backdrop-blur-xl border-b border-white/10 transition-transform duration-300 ease-in-out ${
           visible ? "translate-y-0" : "-translate-y-full"
         }`}
         style={{
           paddingTop: "max(env(safe-area-inset-top, 0px), 28px)",
         }}
-      
       >
         <style>{`
           @keyframes flame-flicker {
@@ -147,7 +146,7 @@ function Navbar() {
           }
         `}</style>
 
-       <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
+        <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
           {enJuego ? (
             <button onClick={() => navigate(volverA)} className="p-2 -ml-2">
               <ArrowLeft size={20} />
@@ -201,7 +200,13 @@ function Navbar() {
           menuAbierto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="sticky top-0 flex items-center justify-between h-16 px-4 border-b border-white/10 bg-[#1a0f2e]">
+        <div
+          className="sticky top-0 flex items-center justify-between px-4 border-b border-white/10 bg-[#1a0f2e]"
+          style={{
+            paddingTop: "max(env(safe-area-inset-top, 0px), 28px)",
+            height: "calc(max(env(safe-area-inset-top, 0px), 28px) + 64px)",
+          }}
+        >
           <div className="flex items-center gap-2">
             <Settings size={18} className="text-pink-400" />
             <span className="font-bold text-white">Configuración</span>
@@ -255,9 +260,7 @@ function Navbar() {
               <Toggle activo={notificaciones} />
             </button>
 
-            <button
-              className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white"
-            >
+            <button className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white">
               <span className="flex items-center gap-2">
                 <Moon size={18} />
                 Tema
@@ -268,9 +271,7 @@ function Navbar() {
               </span>
             </button>
 
-            <button
-              className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white"
-            >
+            <button className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white">
               <span className="flex items-center gap-2">
                 <Globe size={18} />
                 Idioma
@@ -309,9 +310,7 @@ function Navbar() {
               Soporte
             </span>
 
-            <button
-              className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white"
-            >
+            <button className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white">
               <span className="flex items-center gap-2">
                 <HelpCircle size={18} />
                 Ayuda
@@ -329,7 +328,7 @@ function Navbar() {
                 {cerrandoSesion ? "Cerrando sesión..." : "Cerrar sesión"}
               </span>
             </button>
-          </div>  
+          </div>
         </div>
       </aside>
     </>

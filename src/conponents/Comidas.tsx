@@ -18,6 +18,10 @@ import {
   ThumbsUp,
   Map,
   ExternalLink,
+  Search,
+  Clock,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import supabase from "../lib/supabase.js";
 
@@ -36,15 +40,69 @@ interface Comida {
   enlace_yelp: string | null;
 }
 
+type CampoBooleano = "favorito" | "visitado" | "recomendada";
+type Filtro = "todas" | "favoritas" | "visitadas" | "pendientes" | "recomendadas";
+
 // Nombre del bucket de Supabase Storage donde se guardan las fotos de comidas.
 // Debe existir y ser público para que las imágenes se vean con getPublicUrl().
 const BUCKET_FOTOS = "comidas";
+
+const FILTROS: { id: Filtro; label: string }[] = [
+  { id: "todas", label: "Todas" },
+  { id: "favoritas", label: "Favoritas" },
+  { id: "visitadas", label: "Visitadas" },
+  { id: "pendientes", label: "Por visitar" },
+  { id: "recomendadas", label: "Recomendadas" },
+];
+
+function formatearFecha(valor: string): string {
+  const fecha = new Date(valor);
+  if (isNaN(fecha.getTime())) return "";
+  return fecha.toLocaleDateString("es-PE", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+// Botón de estado reutilizable (favorito / visitado / recomendada)
+function Chip({
+  activo,
+  onClick,
+  icon,
+  label,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-xs font-medium border transition active:scale-95 ${
+        activo
+          ? "bg-[#FF4D8D] border-[#FF4D8D] text-white"
+          : "bg-[#1B1033] border-[#453A67]/40 text-white/60 hover:border-[#453A67]"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
 
 function Comidas() {
   const [comidas, setComidas] = useState<Comida[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filtros y búsqueda
+  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [busqueda, setBusqueda] = useState("");
 
   // Id de la comida actualmente expandida en el grid (null = ninguna)
   const [comidaExpandidaId, setComidaExpandidaId] = useState<string | null>(
@@ -56,12 +114,10 @@ function Comidas() {
   const [descripcion, setDescripcion] = useState("");
   const [calificacion, setCalificacion] = useState(5);
 
-  // Estados booleanos nuevos
   const [favorito, setFavorito] = useState(false);
   const [visitado, setVisitado] = useState(false);
   const [recomendada, setRecomendada] = useState(false);
 
-  // Enlaces externos nuevos
   const [enlaceMaps, setEnlaceMaps] = useState("");
   const [enlaceYelp, setEnlaceYelp] = useState("");
 
@@ -72,9 +128,7 @@ function Comidas() {
   const [previewFoto, setPreviewFoto] = useState<string>("");
   const [pegadoDetectado, setPegadoDetectado] = useState(false);
 
-  // Input para elegir de la galería (sin "capture", así el sistema muestra la galería)
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
-  // Input para tomar foto directamente con la cámara
   const inputCamaraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,6 +144,7 @@ function Comidas() {
 
   const cargarComidas = async () => {
     setCargando(true);
+    setError(null);
     const { data, error } = await supabase
       .from("comidas")
       .select("*")
@@ -97,6 +152,7 @@ function Comidas() {
 
     if (error) {
       console.error("Error al cargar comidas:", error.message);
+      setError("No se pudieron cargar las comidas.");
     } else {
       setComidas(data as Comida[]);
     }
@@ -122,11 +178,10 @@ function Comidas() {
     if (inputCamaraRef.current) inputCamaraRef.current.value = "";
   };
 
-  // Función central: recibe un File (venga de galería, cámara o portapapeles)
-  // y arma el preview + guarda el archivo para subirlo al confirmar
+  // Recibe un File (galería, cámara o portapapeles) y arma el preview
   const establecerArchivoFoto = (archivo: File, vienePegado = false) => {
     setArchivoFoto(archivo);
-    setFoto(""); // si hay un archivo, la URL manual queda de lado
+    setFoto("");
     if (previewFoto) URL.revokeObjectURL(previewFoto);
     setPreviewFoto(URL.createObjectURL(archivo));
     setPegadoDetectado(vienePegado);
@@ -138,8 +193,7 @@ function Comidas() {
     establecerArchivoFoto(archivo);
   };
 
-  // Detecta imágenes pegadas desde el portapapeles (Ctrl+V en desktop,
-  // o pegar desde el menú de selección de texto en celular)
+  // Detecta imágenes pegadas desde el portapapeles
   const manejarPegado = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -192,13 +246,14 @@ function Comidas() {
   const agregarComida = async () => {
     if (!nombre.trim()) return;
     setGuardando(true);
+    setError(null);
 
     let urlFoto = foto.trim() || null;
 
     if (archivoFoto) {
       const urlSubida = await subirFotoAStorage(archivoFoto);
       if (!urlSubida) {
-        // Si falla la subida, se detiene el guardado para no perder la foto silenciosamente
+        setError("No se pudo subir la foto. Intenta de nuevo.");
         setGuardando(false);
         return;
       }
@@ -224,6 +279,7 @@ function Comidas() {
 
     if (error) {
       console.error("Error al agregar comida:", error.message);
+      setError("No se pudo guardar la comida.");
     } else if (data) {
       setComidas((prev) => [data as Comida, ...prev]);
       limpiarFormulario();
@@ -233,88 +289,253 @@ function Comidas() {
   };
 
   const eliminarComida = async (id: string) => {
+    if (!window.confirm("¿Eliminar esta comida de la lista?")) return;
+
     const anterior = comidas;
     setComidas((prev) => prev.filter((c) => c.id !== id));
+    if (comidaExpandidaId === id) setComidaExpandidaId(null);
 
     const { error } = await supabase.from("comidas").delete().eq("id", id);
     if (error) {
       console.error("Error al eliminar comida:", error.message);
+      setError("No se pudo eliminar la comida.");
       setComidas(anterior); // revertir si falla
     }
   };
 
-  // Alterna la expansión de una tarjeta: si ya estaba expandida, la colapsa
+  // Cambia favorito / visitado / recomendada directamente desde la tarjeta
+  const alternarCampo = async (id: string, campo: CampoBooleano) => {
+    const actual = comidas.find((c) => c.id === id);
+    if (!actual) return;
+
+    const nuevoValor = !actual[campo];
+    setComidas((prev) =>
+      prev.map((c) => (c.id === id ? ({ ...c, [campo]: nuevoValor } as Comida) : c))
+    );
+
+    const { error } = await supabase
+      .from("comidas")
+      .update({ [campo]: nuevoValor })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error al actualizar:", error.message);
+      setError("No se pudo actualizar la comida.");
+      setComidas((prev) =>
+        prev.map((c) =>
+          c.id === id ? ({ ...c, [campo]: !nuevoValor } as Comida) : c
+        )
+      );
+    }
+  };
+
   const alternarExpansion = (id: string) => {
     setComidaExpandidaId((actual) => (actual === id ? null : id));
   };
 
-  // Chip reutilizable para los toggles de favorito/visitado/recomendada
-  const Chip = ({
-    activo,
-    onClick,
-    icon,
-    label,
-  }: {
-    activo: boolean;
-    onClick: () => void;
-    icon: React.ReactNode;
-    label: string;
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-xs font-medium border transition ${
-        activo
-          ? "bg-[#FF4D8D] border-[#FF4D8D] text-white"
-          : "bg-[#1B1033] border-[#453A67]/40 text-white/60 hover:border-[#453A67]"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
+  // ---------- Datos derivados ----------
+  const totalFavoritas = comidas.filter((c) => c.favorito).length;
+  const promedio =
+    comidas.length > 0
+      ? comidas.reduce((suma, c) => suma + c.calificacion, 0) / comidas.length
+      : 0;
+
+  const contarFiltro = (id: Filtro): number => {
+    switch (id) {
+      case "favoritas":
+        return comidas.filter((c) => c.favorito).length;
+      case "visitadas":
+        return comidas.filter((c) => c.visitado).length;
+      case "pendientes":
+        return comidas.filter((c) => !c.visitado).length;
+      case "recomendadas":
+        return comidas.filter((c) => c.recomendada).length;
+      default:
+        return comidas.length;
+    }
+  };
+
+  const comidasVisibles = comidas.filter((c) => {
+    const q = busqueda.trim().toLowerCase();
+    const coincide =
+      !q ||
+      c.nombre.toLowerCase().includes(q) ||
+      (c.lugar ?? "").toLowerCase().includes(q);
+    if (!coincide) return false;
+
+    switch (filtro) {
+      case "favoritas":
+        return c.favorito;
+      case "visitadas":
+        return c.visitado;
+      case "pendientes":
+        return !c.visitado;
+      case "recomendadas":
+        return c.recomendada;
+      default:
+        return true;
+    }
+  });
 
   return (
-    <section className="px-6 py-10 min-h-screen">
+    <section className="px-5 sm:px-6 py-8 min-h-screen">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
         .fuente-elegante { font-family: 'Playfair Display', Georgia, serif; }
+        .sin-scrollbar::-webkit-scrollbar { display: none; }
+        .sin-scrollbar { scrollbar-width: none; }
+
+        @keyframes tarjeta-in {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .tarjeta-comida { animation: tarjeta-in 0.4s ease both; }
+
+        @keyframes modal-in {
+          from { opacity: 0; transform: translateY(40px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-comida { animation: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .tarjeta-comida, .modal-comida { animation: none !important; }
+        }
       `}</style>
 
       {/* Volver */}
       <Link
         to="/nosotros"
-        className="inline-flex items-center gap-2 text-sm opacity-70 hover:opacity-100 transition mb-6"
+        className="inline-flex items-center gap-2 text-sm opacity-70 hover:opacity-100 transition mb-5"
       >
         <ArrowLeft size={18} />
         Volver a Nosotros
       </Link>
 
-      {/* Título */}
-      <div className="text-center mb-12">
-        <div className="flex justify-center mb-5">
-          <div className="border border-[#FF7EB6]/40 p-5 rounded-full">
-            <Utensils size={40} className="text-[#FF7EB6]" strokeWidth={1.5} />
+      {/* Encabezado */}
+      <div className="relative overflow-hidden rounded-3xl border border-[#453A67]/50 mb-6 px-5 py-7 text-center bg-gradient-to-br from-[#FF4D8D]/20 via-[#B388FF]/10 to-[#FB923C]/15">
+        <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#FF7EB6]/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-10 w-40 h-40 rounded-full bg-[#B388FF]/20 blur-3xl" />
+
+        <div className="relative">
+          <div className="flex justify-center mb-3">
+            <div className="border border-[#FF7EB6]/40 bg-[#1B1033]/50 p-4 rounded-full">
+              <Utensils size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
+            </div>
+          </div>
+          <h1 className="fuente-elegante text-4xl font-bold tracking-tight">
+            Comidas
+          </h1>
+          <p className="text-sm tracking-wide opacity-70 mt-1.5">
+            Lo que hemos comido juntos
+          </p>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-3 gap-2.5 mt-6">
+            <div className="rounded-2xl bg-[#1B1033]/60 border border-white/10 py-3">
+              <p className="fuente-elegante text-2xl font-bold">{comidas.length}</p>
+              <p className="text-[11px] uppercase tracking-wider opacity-60">
+                Lugares
+              </p>
+            </div>
+            <div className="rounded-2xl bg-[#1B1033]/60 border border-white/10 py-3">
+              <p className="fuente-elegante text-2xl font-bold flex items-center justify-center gap-1">
+                {totalFavoritas}
+                <Heart size={15} className="text-[#FF4D8D] fill-[#FF4D8D]" />
+              </p>
+              <p className="text-[11px] uppercase tracking-wider opacity-60">
+                Favoritas
+              </p>
+            </div>
+            <div className="rounded-2xl bg-[#1B1033]/60 border border-white/10 py-3">
+              <p className="fuente-elegante text-2xl font-bold flex items-center justify-center gap-1">
+                {comidas.length > 0 ? promedio.toFixed(1) : "–"}
+                <Star size={15} className="text-[#FACC15] fill-[#FACC15]" />
+              </p>
+              <p className="text-[11px] uppercase tracking-wider opacity-60">
+                Promedio
+              </p>
+            </div>
           </div>
         </div>
-        <h1 className="fuente-elegante text-4xl sm:text-5xl font-bold tracking-tight">
-          Comidas
-        </h1>
-        <div className="w-14 h-px bg-[#B388FF]/60 mx-auto mt-4 mb-4" />
-        <p className="text-sm sm:text-base tracking-wide opacity-70">
-          Nuestros restaurantes y platos favoritos
-        </p>
       </div>
 
       <div className="max-w-5xl mx-auto">
         {/* Botón agregar */}
         <button
           onClick={() => setModalAbierto(true)}
-          className="flex items-center justify-center gap-2 w-full mb-8 bg-[#FF4D8D] hover:bg-[#E63A79] transition rounded-full py-3 font-semibold tracking-wide text-white"
+          className="flex items-center justify-center gap-2 w-full mb-5 bg-[#FF4D8D] hover:bg-[#E63A79] active:scale-[0.98] transition rounded-full py-3 font-semibold tracking-wide text-white shadow-lg shadow-[#FF4D8D]/20"
         >
           <Plus size={20} />
           Agregar comida
         </button>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-5 flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              aria-label="Cerrar aviso"
+              className="shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Búsqueda y filtros */}
+        {!cargando && comidas.length > 0 && (
+          <div className="mb-5 space-y-3">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50"
+              />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o lugar"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full rounded-full pl-10 pr-10 py-2.5 bg-[#1B1033] border border-[#453A67]/40 outline-none focus:border-[#FF7EB6]/60 transition text-sm"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100"
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            <div className="sin-scrollbar flex gap-2 overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0 pb-1">
+              {FILTROS.map((f) => {
+                const activo = filtro === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setFiltro(f.id)}
+                    className={`shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border transition ${
+                      activo
+                        ? "bg-[#FF4D8D] border-[#FF4D8D] text-white"
+                        : "bg-[#1B1033] border-[#453A67]/40 text-white/70 hover:border-[#453A67]"
+                    }`}
+                  >
+                    {f.label}
+                    <span
+                      className={`text-[10px] rounded-full px-1.5 ${
+                        activo ? "bg-white/25" : "bg-white/10"
+                      }`}
+                    >
+                      {contarFiltro(f.id)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Cargando */}
         {cargando && (
@@ -325,133 +546,198 @@ function Comidas() {
 
         {/* Lista vacía */}
         {!cargando && comidas.length === 0 && (
-          <div className="text-center rounded-3xl p-10 border border-[#453A67]/40 opacity-70">
-            Todavía no agregaron ninguna comida. ¡Empiecen a guardar sus
-            favoritas!
+          <div className="text-center rounded-3xl p-10 border border-dashed border-[#453A67]/60">
+            <div className="mx-auto w-16 h-16 rounded-full bg-[#FF7EB6]/10 flex items-center justify-center mb-4">
+              <Sparkles size={28} className="text-[#FF7EB6]" />
+            </div>
+            <p className="fuente-elegante text-lg">Aún no hay comidas</p>
+            <p className="text-sm opacity-70 mt-1">
+              Guarda la primera y empecemos esta lista juntos 🍽️
+            </p>
           </div>
         )}
 
-        {/* Grid de comidas: siempre 2 columnas. Al tocar una tarjeta, se
-            expande ocupando las 2 columnas (y muestra todo el detalle),
-            mientras que las demás quedan en su versión compacta. */}
-        {!cargando && (
-          <div className="grid grid-cols-2 gap-4">
-            {comidas.map((comida) => {
+        {/* Sin resultados con el filtro actual */}
+        {!cargando && comidas.length > 0 && comidasVisibles.length === 0 && (
+          <div className="text-center rounded-3xl p-10 border border-[#453A67]/40 opacity-70 text-sm">
+            No encontramos nada con ese filtro.
+          </div>
+        )}
+
+        {/* Grid de comidas */}
+        {!cargando && comidasVisibles.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {comidasVisibles.map((comida, index) => {
               const expandida = comidaExpandidaId === comida.id;
 
               return (
                 <div
                   key={comida.id}
                   onClick={() => alternarExpansion(comida.id)}
-                  className={`rounded-3xl p-5 border cursor-pointer transition-all duration-300 relative ${
+                  style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
+                  className={`tarjeta-comida relative overflow-hidden rounded-3xl border cursor-pointer transition-all duration-300 bg-[#241539]/60 ${
                     expandida
                       ? "col-span-2 border-[#FF7EB6]/60"
-                      : "border-[#453A67]/40 hover:border-[#FF7EB6]/50"
+                      : "border-[#453A67]/40 hover:border-[#FF7EB6]/50 active:scale-[0.98]"
                   }`}
                 >
-                  {comida.foto && (
-                    <div className="relative mb-4">
+                  {/* Foto o placeholder */}
+                  <div
+                    className={`relative w-full transition-all duration-300 ${
+                      expandida ? "h-56" : "h-32"
+                    }`}
+                  >
+                    {comida.foto ? (
                       <img
                         src={comida.foto}
                         alt={comida.nombre}
-                        className={`w-full object-cover rounded-2xl transition-all duration-300 ${
-                          expandida ? "h-56" : "h-28"
-                        }`}
+                        loading="lazy"
+                        className="w-full h-full object-cover"
                       />
-                      {comida.favorito && (
-                        <span className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5">
-                          <Heart
-                            size={16}
-                            className="text-[#FF4D8D] fill-[#FF4D8D]"
-                          />
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-start justify-between gap-2">
-                    <h3
-                      className={`fuente-elegante font-semibold flex items-center gap-1.5 ${
-                        expandida ? "text-2xl" : "text-base"
-                      }`}
-                    >
-                      {comida.nombre}
-                      {!comida.foto && comida.favorito && (
-                        <Heart
-                          size={16}
-                          className="text-[#FF4D8D] fill-[#FF4D8D] shrink-0"
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#FF4D8D]/30 via-[#B388FF]/20 to-[#FB923C]/30 flex items-center justify-center">
+                        <Utensils
+                          size={expandida ? 44 : 32}
+                          className="text-white/50"
+                          strokeWidth={1.5}
                         />
-                      )}
-                    </h3>
+                      </div>
+                    )}
+
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+
+                    {/* Favorito (se cambia con un toque) */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        eliminarComida(comida.id);
+                        alternarCampo(comida.id, "favorito");
                       }}
-                      className="text-[#B8B5C9] hover:text-[#FF4D8D] transition shrink-0"
-                      aria-label="Eliminar"
+                      className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full p-2 active:scale-90 transition"
+                      aria-label={
+                        comida.favorito ? "Quitar de favoritas" : "Marcar como favorita"
+                      }
                     >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-
-                  {comida.lugar && (
-                    <div className="flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-[#B388FF]">
-                      <MapPin size={14} />
-                      {comida.lugar}
-                    </div>
-                  )}
-
-                  <div className="flex gap-1 mt-2">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
+                      <Heart
+                        size={16}
                         className={
-                          i < comida.calificacion
-                            ? "text-[#FACC15] fill-[#FACC15]"
-                            : "text-[#453A67]"
+                          comida.favorito
+                            ? "text-[#FF4D8D] fill-[#FF4D8D]"
+                            : "text-white"
                         }
                       />
-                    ))}
+                    </button>
+
+                    {/* Calificación */}
+                    <span className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-semibold">
+                      <Star size={12} className="text-[#FACC15] fill-[#FACC15]" />
+                      {comida.calificacion}
+                    </span>
+
+                    {/* Estado visitado */}
+                    <span
+                      className={`absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium backdrop-blur-sm ${
+                        comida.visitado
+                          ? "bg-emerald-500/30 text-emerald-200"
+                          : "bg-black/60 text-white/70"
+                      }`}
+                    >
+                      {comida.visitado ? (
+                        <CheckCircle2 size={11} />
+                      ) : (
+                        <Clock size={11} />
+                      )}
+                      {comida.visitado ? "Visitado" : "Por visitar"}
+                    </span>
                   </div>
 
-                  {/* El resto del detalle solo se muestra cuando la tarjeta
-                      está expandida, para mantener el grid compacto en 2x2 */}
-                  {expandida && (
-                    <>
-                      {(comida.visitado || comida.recomendada) && (
-                        <div className="flex flex-wrap gap-1.5 mt-2.5">
-                          {comida.visitado && (
-                            <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[#3B2A5E] text-[#B8B5C9]">
-                              <CheckCircle2 size={12} />
-                              Visitado
-                            </span>
-                          )}
-                          {comida.recomendada && (
-                            <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-[#3B2A5E] text-[#B8B5C9]">
-                              <ThumbsUp size={12} />
-                              Recomendada
-                            </span>
-                          )}
+                  {/* Contenido */}
+                  <div className="p-4">
+                    <h3
+                      className={`fuente-elegante font-semibold leading-snug ${
+                        expandida ? "text-2xl" : "text-base line-clamp-2"
+                      }`}
+                    >
+                      {comida.nombre}
+                    </h3>
+
+                    {comida.lugar && (
+                      <div
+                        className={`flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-[#B388FF] ${
+                          expandida ? "" : "truncate"
+                        }`}
+                      >
+                        <MapPin size={13} className="shrink-0" />
+                        <span className={expandida ? "" : "truncate"}>
+                          {comida.lugar}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Detalle: solo cuando la tarjeta está expandida */}
+                    {expandida && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 mt-3">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              size={18}
+                              className={
+                                i < comida.calificacion
+                                  ? "text-[#FACC15] fill-[#FACC15]"
+                                  : "text-[#453A67]"
+                              }
+                            />
+                          ))}
                         </div>
-                      )}
 
-                      {comida.descripcion && (
-                        <p className="mt-3 text-sm leading-relaxed opacity-80">
-                          {comida.descripcion}
-                        </p>
-                      )}
+                        {comida.descripcion && (
+                          <p className="mt-4 text-sm leading-relaxed opacity-85">
+                            {comida.descripcion}
+                          </p>
+                        )}
 
-                      {(comida.enlace_maps || comida.enlace_yelp) && (
-                        <div className="flex flex-wrap gap-2 mt-4">
+                        {formatearFecha(comida.created_at) && (
+                          <p className="flex items-center gap-1.5 mt-4 text-xs opacity-55">
+                            <Calendar size={13} />
+                            Guardada el {formatearFecha(comida.created_at)}
+                          </p>
+                        )}
+
+                        {/* Estados editables al instante */}
+                        <div className="flex gap-2 mt-4">
+                          <Chip
+                            activo={comida.favorito}
+                            onClick={() => alternarCampo(comida.id, "favorito")}
+                            icon={
+                              <Heart
+                                size={14}
+                                className={comida.favorito ? "fill-white" : ""}
+                              />
+                            }
+                            label="Favorito"
+                          />
+                          <Chip
+                            activo={comida.visitado}
+                            onClick={() => alternarCampo(comida.id, "visitado")}
+                            icon={<CheckCircle2 size={14} />}
+                            label="Visitado"
+                          />
+                          <Chip
+                            activo={comida.recomendada}
+                            onClick={() => alternarCampo(comida.id, "recomendada")}
+                            icon={<ThumbsUp size={14} />}
+                            label="Recomendada"
+                          />
+                        </div>
+
+                        {/* Enlaces y eliminar */}
+                        <div className="flex flex-wrap items-center gap-2 mt-4">
                           {comida.enlace_maps && (
                             <a
                               href={comida.enlace_maps}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-[#453A67]/50 text-[#B388FF] hover:border-[#B388FF] transition"
+                              className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-[#453A67]/50 text-[#B388FF] hover:border-[#B388FF] transition"
                             >
                               <Map size={13} />
                               Maps
@@ -462,17 +748,24 @@ function Comidas() {
                               href={comida.enlace_yelp}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-[#453A67]/50 text-[#B388FF] hover:border-[#B388FF] transition"
+                              className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-[#453A67]/50 text-[#B388FF] hover:border-[#B388FF] transition"
                             >
                               <ExternalLink size={13} />
                               Yelp
                             </a>
                           )}
+                          <button
+                            onClick={() => eliminarComida(comida.id)}
+                            className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full text-[#B8B5C9] hover:text-[#FF4D8D] transition"
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 size={14} />
+                            Eliminar
+                          </button>
                         </div>
-                      )}
-                    </>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -480,14 +773,14 @@ function Comidas() {
         )}
       </div>
 
-      {/* Modal agregar comida */}
+      {/* Modal agregar comida (hoja inferior en celular) */}
       {modalAbierto && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center px-6 z-[100]"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:px-6 z-[100]"
           onClick={() => setModalAbierto(false)}
         >
           <div
-            className="bg-[#241539] rounded-3xl p-7 w-full max-w-md border border-[#453A67]/40 max-h-[90vh] overflow-y-auto"
+            className="modal-comida bg-[#241539] rounded-t-3xl sm:rounded-3xl p-6 sm:p-7 w-full max-w-md border border-[#453A67]/40 max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             onPaste={manejarPegado}
           >
@@ -498,6 +791,7 @@ function Comidas() {
               <button
                 onClick={() => setModalAbierto(false)}
                 className="opacity-70 hover:opacity-100 transition"
+                aria-label="Cerrar"
               >
                 <X size={22} />
               </button>
@@ -566,11 +860,10 @@ function Comidas() {
 
                 {!previewFoto && (
                   <p className="text-center text-[11px] opacity-40">
-                    También podés pegar una imagen copiada (Ctrl+V)
+                    También puedes pegar una imagen copiada (Ctrl+V)
                   </p>
                 )}
 
-                {/* Input de cámara: capture fuerza la app de cámara en celulares */}
                 <input
                   ref={inputCamaraRef}
                   type="file"
@@ -579,7 +872,6 @@ function Comidas() {
                   onChange={manejarSeleccionArchivo}
                   className="hidden"
                 />
-                {/* Input de galería: sin capture, así el sistema muestra la galería/fototeca */}
                 <input
                   ref={inputGaleriaRef}
                   type="file"
@@ -618,9 +910,10 @@ function Comidas() {
                       key={i}
                       type="button"
                       onClick={() => setCalificacion(i + 1)}
+                      aria-label={`${i + 1} estrellas`}
                     >
                       <Star
-                        size={20}
+                        size={22}
                         className={
                           i < calificacion
                             ? "text-[#FACC15] fill-[#FACC15]"
@@ -632,7 +925,6 @@ function Comidas() {
                 </div>
               </div>
 
-              {/* Toggles: favorito / visitado / recomendada */}
               <div className="flex gap-2 pt-1">
                 <Chip
                   activo={favorito}
@@ -654,7 +946,6 @@ function Comidas() {
                 />
               </div>
 
-              {/* Enlaces externos */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-2">
                   <Map size={16} className="opacity-50 shrink-0" />
