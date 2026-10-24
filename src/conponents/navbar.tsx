@@ -102,13 +102,14 @@ function Navbar() {
 
   return (
     <>
-      <header
-        className={`fixed left-0 right-0 z-50 flex justify-center transition-transform duration-300 ease-in-out ${
+       <header
+        className={`fixed top-0 left-0 right-0 z-50 flex justify-center bg-[#1a0f2ecc] backdrop-blur-xl border-b border-white/10 transition-transform duration-300 ease-in-out ${
           visible ? "translate-y-0" : "-translate-y-full"
         }`}
         style={{
-          top: "env(safe-area-inset-top, 24px)",
+          paddingTop: "max(env(safe-area-inset-top, 0px), 28px)",
         }}
+      
       >
         <style>{`
           @keyframes flame-flicker {
@@ -146,7 +147,7 @@ function Navbar() {
           }
         `}</style>
 
-        <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
+       <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
           {enJuego ? (
             <button onClick={() => navigate(volverA)} className="p-2 -ml-2">
               <ArrowLeft size={20} />
