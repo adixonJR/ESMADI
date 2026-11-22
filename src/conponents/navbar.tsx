@@ -20,6 +20,15 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import supabase from "../lib/supabase.js";
 
+// Espacio entre el borde de arriba y el contenido del navbar.
+// Mientras más bajo el número, más arriba queda. Si el celular ya reserva
+// espacio para la barra de estado, se usa ese valor automáticamente.
+// Si la hora o la batería tapan los botones, sube este número (por ejemplo a 20px).
+const MARGEN_SUPERIOR = "max(env(safe-area-inset-top, 0px), 6px)";
+
+// Alto de la fila con el menú, el título y el sonido (antes 64px).
+const ALTO_FILA = 48;
+
 function Navbar() {
   const [sound, setSound] = useState(true);
   const [vibracion, setVibracion] = useState(true);
@@ -107,7 +116,7 @@ function Navbar() {
           visible ? "translate-y-0" : "-translate-y-full"
         }`}
         style={{
-          paddingTop: "max(env(safe-area-inset-top, 0px), 28px)",
+          paddingTop: MARGEN_SUPERIOR,
         }}
       >
         <style>{`
@@ -146,7 +155,10 @@ function Navbar() {
           }
         `}</style>
 
-        <div className="w-full max-w-[560px] h-16 px-4 flex items-center justify-between">
+        <div
+          className="w-full max-w-[560px] px-4 flex items-center justify-between"
+          style={{ height: ALTO_FILA }}
+        >
           {enJuego ? (
             <button onClick={() => navigate(volverA)} className="p-2 -ml-2">
               <ArrowLeft size={20} />
@@ -203,8 +215,8 @@ function Navbar() {
         <div
           className="sticky top-0 flex items-center justify-between px-4 border-b border-white/10 bg-[#1a0f2e]"
           style={{
-            paddingTop: "max(env(safe-area-inset-top, 0px), 28px)",
-            height: "calc(max(env(safe-area-inset-top, 0px), 28px) + 64px)",
+            paddingTop: MARGEN_SUPERIOR,
+            height: `calc(${MARGEN_SUPERIOR} + ${ALTO_FILA}px)`,
           }}
         >
           <div className="flex items-center gap-2">
