@@ -40,6 +40,11 @@ import Progreso from "./pages/progreso";
 import Nosotros from "./pages/nosotros";
 import Fechas from "./pages/fechas";
 
+// Estos dos valores deben ser iguales a los del navbar (MARGEN_SUPERIOR y ALTO_FILA).
+// Si cambias el navbar, cambia también estos para que no quede espacio de más.
+const MARGEN_SUPERIOR_NAVBAR = "max(env(safe-area-inset-top, 0px), 6px)";
+const ALTO_NAVBAR = 48 + 1; // fila de 48px + 1px del borde inferior
+
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -107,9 +112,10 @@ function AppContent() {
       <main
         className="pb-24"
         style={{
+          // El contenido empieza justo debajo del navbar, sin hueco
           paddingTop: ocultarNavbar
             ? 0
-            : "calc(max(env(safe-area-inset-top, 0px), 28px) + 64px + 16px)",
+            : `calc(${MARGEN_SUPERIOR_NAVBAR} + ${ALTO_NAVBAR}px)`,
         }}
       >
         <Routes>
