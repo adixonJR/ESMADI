@@ -22,7 +22,7 @@ import {
   Minus,
 } from "lucide-react";
 import supabase from "../lib/supabase.js";
-import { aplicarAIframe, useSilenciado } from "../lib/sonido";
+import { aplicarAIframe, useSilenciado } from "../lib/Sonido.js";
 
 // ---------- Tipos y utilidades (se reutilizan en Playlist.tsx) ----------
 export interface Cancion {
