@@ -91,6 +91,51 @@ const cara: CSSProperties = {
   WebkitBackfaceVisibility: "hidden",
 };
 
+// Mini collage de fotos tipo "polaroid" para las paginas del libro
+function Collage({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  const giros = [-2.5, 2, 1.5, -2];
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: "16px 12px 16px 20px",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+        gap: 8,
+      }}
+    >
+      {urls.slice(0, 4).map((u, i) => (
+        <div
+          key={i}
+          style={{
+            boxSizing: "border-box",
+            background: "#fffdf6",
+            padding: 3,
+            borderRadius: 3,
+            overflow: "hidden",
+            boxShadow: "0 2px 5px rgba(60,40,20,0.35)",
+            transform: `rotate(${giros[i % giros.length]}deg)`,
+          }}
+        >
+          <img
+            src={u}
+            alt=""
+            draggable={false}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Hoja de papel que se voltea (anverso + reverso con sombreado segun el giro)
 function Hoja({
   abierto,
@@ -98,12 +143,16 @@ function Hoja({
   angulo,
   zCerrado,
   zAbierto,
+  anverso,
+  reverso,
 }: {
   abierto: boolean;
   retraso: number;
   angulo: number;
   zCerrado: number;
   zAbierto: number;
+  anverso: string[];
+  reverso: string[];
 }) {
   const t = `${DURACION_HOJA}ms ${EASE_LIBRO} ${retraso}ms`;
   return (
@@ -128,6 +177,7 @@ function Hoja({
             background: LINEAS,
           }}
         />
+        <Collage urls={anverso} />
         <div
           style={{
             position: "absolute",
@@ -155,6 +205,7 @@ function Hoja({
             background: LINEAS,
           }}
         />
+        <Collage urls={reverso} />
         <div
           style={{
             position: "absolute",
@@ -242,9 +293,25 @@ function Album() {
     };
   }, []);
 
+  // Fotos que se muestran en las paginas del libro
+  const urlsLibro = useMemo(
+    () => fotos.map((f) => f.imagen_url).filter((u): u is string => !!u),
+    [fotos]
+  );
+
+  // Devuelve 4 fotos para cada pagina (se repiten si hay pocas)
+  const grupo = (i: number): string[] =>
+    urlsLibro.length === 0
+      ? []
+      : Array.from(
+          { length: 4 },
+          (_, k) => urlsLibro[(i * 4 + k) % urlsLibro.length]
+        );
+
   // ---------- Busqueda ----------
   const [busqueda, setBusqueda] = useState("");
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
+  const [cerrandoBusqueda, setCerrandoBusqueda] = useState(false);
   const [soloFavoritos, setSoloFavoritos] = useState(false);
 
   const fotosFiltradas = useMemo(() => {
@@ -281,9 +348,17 @@ function Album() {
     return ETIQUETAS_SUGERIDAS.filter((t) => !usadas.has(t));
   }, [etiquetasAlbum]);
 
+  function cerrarBusqueda() {
+    setCerrandoBusqueda(true);
+    setTimeout(() => {
+      setBusquedaAbierta(false);
+      setCerrandoBusqueda(false);
+    }, 220);
+  }
+
   function elegirEtiqueta(t: string) {
     setBusqueda(t);
-    setBusquedaAbierta(false);
+    cerrarBusqueda();
   }
 
   const chipClase = (activa: boolean) =>
@@ -413,8 +488,18 @@ function Album() {
 
   return (
     <section className="relative min-h-screen bg-[#241539] overflow-hidden">
+      {/* Animaciones (buscador y lightbox) */}
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+        @keyframes busquedaFondo { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(10px); } }
+        @keyframes busquedaFondoOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes busquedaPanel { from { opacity: 0; transform: translateY(-16px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes busquedaPanelOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-12px) scale(.98); } }
+        @keyframes chipEntra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+
       {/* ---------- Contenido del album ---------- */}
-      <div className="px-4 sm:px-6 pt-6 pb-28 max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
+      <div className="px-3 sm:px-6 pt-6 pb-28 max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
         {/* Barra de busqueda fija de arriba */}
         <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-3 mb-2">
           <Search size={18} className="text-gray-300" />
@@ -426,7 +511,10 @@ function Album() {
             className="bg-transparent outline-none text-sm text-gray-200 placeholder-gray-400 flex-1"
           />
           {busqueda && (
-            <button onClick={() => setBusqueda("")} className="text-gray-300 hover:text-white">
+            <button
+              onClick={() => setBusqueda("")}
+              className="text-gray-300 hover:text-white"
+            >
               <X size={16} />
             </button>
           )}
@@ -435,7 +523,8 @@ function Album() {
         {/* Chips de resultado de busqueda */}
         {busqueda && (
           <p className="text-xs text-gray-400 mb-3 px-1">
-            {fotosFiltradas.length} resultado{fotosFiltradas.length !== 1 ? "s" : ""} para{" "}
+            {fotosFiltradas.length} resultado
+            {fotosFiltradas.length !== 1 ? "s" : ""} para{" "}
             <span className="text-pink-400">{busqueda}</span>
           </p>
         )}
@@ -444,7 +533,8 @@ function Album() {
         {soloFavoritos && (
           <div className="flex items-center justify-between mb-3 px-1">
             <p className="text-xs text-pink-400 flex items-center gap-1">
-              <Heart size={12} className="fill-pink-400" /> Mostrando solo favoritos
+              <Heart size={12} className="fill-pink-400" /> Mostrando solo
+              favoritos
             </p>
             <button
               onClick={() => setSoloFavoritos(false)}
@@ -457,11 +547,12 @@ function Album() {
 
         {/* Grilla de fotos estilo mosaico */}
         <div
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 auto-rows-[26px]"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 auto-rows-[34px] grid-flow-dense"
           style={{
             opacity: listo ? 1 : 0,
             transform: listo ? "translateY(0)" : "translateY(12px)",
-            transition: "opacity 500ms ease-out, transform 500ms ease-out, filter 300ms ease-out",
+            transition:
+              "opacity 500ms ease-out, transform 500ms ease-out, filter 300ms ease-out",
             transitionDelay: listo ? "400ms" : "0ms",
             filter: desenfocado ? "blur(6px)" : "blur(0px)",
           }}
@@ -479,13 +570,13 @@ function Album() {
               <div
                 key={foto.id}
                 onClick={() => setFotoAmpliadaId(foto.id)}
-                className={`relative rounded-2xl overflow-hidden bg-white/10 cursor-pointer ${alturaClase[foto.alto]}`}
+                className={`group relative rounded-2xl overflow-hidden bg-white/10 cursor-pointer ${alturaClase[foto.alto]}`}
               >
                 {foto.imagen_url ? (
                   <img
                     src={foto.imagen_url}
                     alt={foto.descripcion}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -498,29 +589,35 @@ function Album() {
                     e.stopPropagation();
                     alternarFavorito(foto.id);
                   }}
-                  className="absolute top-2 right-2 bg-black/30 rounded-full p-1"
+                  className="absolute top-1.5 right-1.5 bg-black/25 backdrop-blur-sm rounded-full p-1"
                 >
                   <Heart
-                    size={16}
-                    className={foto.favorito ? "text-pink-400 fill-pink-400" : "text-white/80"}
+                    size={14}
+                    className={
+                      foto.favorito
+                        ? "text-pink-400 fill-pink-400"
+                        : "text-white/80"
+                    }
                   />
                 </button>
 
                 {(foto.descripcion || foto.tags.length > 0) && (
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 to-transparent px-2 pt-6 pb-2">
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/65 to-transparent px-2 pt-4 pb-1.5">
                     {foto.descripcion && (
-                      <p className="text-[11px] text-white/90 line-clamp-1">{foto.descripcion}</p>
+                      <p className="text-[11px] leading-tight text-white/90 truncate">
+                        {foto.descripcion}
+                      </p>
                     )}
                     {foto.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-x-1.5 mt-0.5">
-                        {foto.tags.map((t) => (
+                      <div className="flex gap-x-1.5 overflow-hidden whitespace-nowrap">
+                        {foto.tags.slice(0, 2).map((t) => (
                           <button
                             key={t}
                             onClick={(e) => {
                               e.stopPropagation();
                               setBusqueda(t);
                             }}
-                            className="text-[10px] text-pink-300 hover:text-pink-200"
+                            className="text-[10px] leading-tight text-pink-300 hover:text-pink-200"
                           >
                             {t}
                           </button>
@@ -539,11 +636,25 @@ function Album() {
       {busquedaAbierta && (
         <div
           className="fixed inset-0 z-40 flex items-start justify-center pt-24 px-4 overflow-y-auto"
-          style={{ backdropFilter: "blur(10px)", backgroundColor: "rgba(20, 10, 35, 0.45)" }}
-          onClick={() => setBusquedaAbierta(false)}
+          style={{
+            backdropFilter: "blur(10px)",
+            backgroundColor: "rgba(20, 10, 35, 0.45)",
+            animation: cerrandoBusqueda
+              ? "busquedaFondoOut 220ms ease-in forwards"
+              : "busquedaFondo 300ms ease-out",
+          }}
+          onClick={cerrarBusqueda}
         >
-          <div className="w-full max-w-md sm:max-w-lg pb-10" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-3 shadow-xl">
+          <div
+            className="w-full max-w-md sm:max-w-lg pb-10"
+            style={{
+              animation: cerrandoBusqueda
+                ? "busquedaPanelOut 220ms ease-in forwards"
+                : "busquedaPanel 380ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-3 shadow-xl focus-within:bg-white/15 focus-within:ring-1 focus-within:ring-pink-400/50 transition">
               <Search size={18} className="text-gray-300" />
               <input
                 autoFocus
@@ -551,18 +662,21 @@ function Album() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") setBusquedaAbierta(false);
+                  if (e.key === "Enter") cerrarBusqueda();
                 }}
                 placeholder="Buscar por #playa, #cine..."
                 className="bg-transparent outline-none text-sm text-gray-200 placeholder-gray-400 flex-1"
               />
               {busqueda && (
-                <button onClick={() => setBusqueda("")} className="text-gray-300 hover:text-white">
+                <button
+                  onClick={() => setBusqueda("")}
+                  className="text-gray-300 hover:text-white"
+                >
                   <X size={16} />
                 </button>
               )}
               <button
-                onClick={() => setBusquedaAbierta(false)}
+                onClick={cerrarBusqueda}
                 className="text-gray-300 hover:text-white"
               >
                 <X size={18} />
@@ -576,11 +690,15 @@ function Album() {
                   En tu álbum
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {etiquetasAlbum.map(([t, n]) => (
+                  {etiquetasAlbum.map(([t, n], i) => (
                     <button
                       key={t}
                       onClick={() => elegirEtiqueta(t)}
                       className={chipClase(busquedaNormalizada === t)}
+                      style={{
+                        animation: "chipEntra 400ms ease-out both",
+                        animationDelay: `${150 + i * 35}ms`,
+                      }}
                     >
                       {t} <span className="text-xs opacity-60">{n}</span>
                     </button>
@@ -589,17 +707,21 @@ function Album() {
               </div>
             )}
 
-            {/* Etiquetas sugeridas ya puestas */}
+            {/* Etiquetas sugeridas */}
             <div className="mt-6">
               <p className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-1">
                 Sugeridas
               </p>
               <div className="flex flex-wrap gap-2">
-                {etiquetasSugeridas.map((t) => (
+                {etiquetasSugeridas.map((t, i) => (
                   <button
                     key={t}
                     onClick={() => elegirEtiqueta(t)}
                     className={chipClase(busquedaNormalizada === t)}
+                    style={{
+                      animation: "chipEntra 400ms ease-out both",
+                      animationDelay: `${250 + (etiquetasAlbum.length + i) * 35}ms`,
+                    }}
                   >
                     {t}
                   </button>
@@ -614,7 +736,10 @@ function Album() {
       {fotoAmpliada && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backdropFilter: "blur(14px)", backgroundColor: "rgba(20, 10, 35, 0.6)" }}
+          style={{
+            backdropFilter: "blur(14px)",
+            backgroundColor: "rgba(20, 10, 35, 0.6)",
+          }}
           onClick={() => setFotoAmpliadaId(null)}
         >
           <div
@@ -645,7 +770,9 @@ function Album() {
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-2">
                 {fotoAmpliada.descripcion && (
-                  <p className="text-sm text-white/90 flex-1">{fotoAmpliada.descripcion}</p>
+                  <p className="text-sm text-white/90 flex-1">
+                    {fotoAmpliada.descripcion}
+                  </p>
                 )}
                 <button
                   onClick={() => alternarFavorito(fotoAmpliada.id)}
@@ -698,7 +825,10 @@ function Album() {
         }}
       >
         <div className="flex items-center justify-center gap-7 sm:gap-9 md:gap-11 bg-white/10 backdrop-blur rounded-full px-7 sm:px-9 py-4 border border-white/10">
-          <Link to="/nosotros" className="text-gray-300 hover:text-white transition">
+          <Link
+            to="/nosotros"
+            className="text-gray-300 hover:text-white transition"
+          >
             <Home size={24} />
           </Link>
           <button
@@ -715,11 +845,16 @@ function Album() {
           </button>
           <button
             onClick={() => setSoloFavoritos((prev) => !prev)}
-            className={`transition ${soloFavoritos ? "text-pink-400" : "text-gray-300 hover:text-white"}`}
+            className={`transition ${
+              soloFavoritos ? "text-pink-400" : "text-gray-300 hover:text-white"
+            }`}
           >
             <Heart size={24} className={soloFavoritos ? "fill-pink-400" : ""} />
           </button>
-          <Link to="/perfil" className="text-gray-300 hover:text-white transition">
+          <Link
+            to="/perfil"
+            className="text-gray-300 hover:text-white transition"
+          >
             <User size={24} />
           </Link>
         </div>
@@ -737,7 +872,10 @@ function Album() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">Agregar recuerdo</h3>
-              <button onClick={cerrarModal} className="text-gray-300 hover:text-white">
+              <button
+                onClick={cerrarModal}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={22} />
               </button>
             </div>
@@ -745,7 +883,10 @@ function Album() {
             <label className="block mb-4 cursor-pointer">
               <div className="w-full h-40 rounded-2xl bg-white/10 border border-dashed border-white/20 flex items-center justify-center overflow-hidden">
                 {nuevaPreview ? (
-                  <img src={nuevaPreview} className="w-full h-full object-cover" />
+                  <img
+                    src={nuevaPreview}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div className="text-gray-400 text-sm flex flex-col items-center gap-2">
                     <ImageIcon size={26} />
@@ -753,7 +894,12 @@ function Album() {
                   </div>
                 )}
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={manejarImagen} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={manejarImagen}
+              />
             </label>
 
             <textarea
@@ -872,15 +1018,46 @@ function Album() {
                     background: LINEAS,
                   }}
                 />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Heart size={44} className="text-pink-400/20 fill-pink-400/10" />
-                </div>
+                {urlsLibro.length > 0 ? (
+                  <Collage urls={grupo(0)} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Heart
+                      size={44}
+                      className="text-pink-400/20 fill-pink-400/10"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Hojas que se voltean despues de la tapa */}
-              <Hoja abierto={abierto} retraso={420} angulo={-177.5} zCerrado={4} zAbierto={1} />
-              <Hoja abierto={abierto} retraso={640} angulo={-176} zCerrado={3} zAbierto={2} />
-              <Hoja abierto={abierto} retraso={860} angulo={-174.5} zCerrado={2} zAbierto={3} />
+              <Hoja
+                abierto={abierto}
+                retraso={420}
+                angulo={-177.5}
+                zCerrado={4}
+                zAbierto={1}
+                anverso={grupo(1)}
+                reverso={grupo(2)}
+              />
+              <Hoja
+                abierto={abierto}
+                retraso={640}
+                angulo={-176}
+                zCerrado={3}
+                zAbierto={2}
+                anverso={grupo(3)}
+                reverso={grupo(4)}
+              />
+              <Hoja
+                abierto={abierto}
+                retraso={860}
+                angulo={-174.5}
+                zCerrado={2}
+                zAbierto={3}
+                anverso={grupo(5)}
+                reverso={grupo(6)}
+              />
 
               {/* Tapa delantera (bisagra en el lomo, a la izquierda) */}
               <div
@@ -958,7 +1135,9 @@ function Album() {
                     <Heart
                       size={34}
                       className="text-[#EC4899] fill-[#EC4899] mb-3"
-                      style={{ filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.6))" }}
+                      style={{
+                        filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.6))",
+                      }}
                     />
                     <span
                       style={{

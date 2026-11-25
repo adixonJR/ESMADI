@@ -22,6 +22,10 @@ import Comidas from "./conponents/Comidas";
 import PeliculasSeries from "./conponents/PeliculasSeries";
 import Figura from "./conponents/Figura";
 
+//////////////////// MUSICA //////////////////////
+
+import { MusicaProvider, useMusica } from "./conponents/MusicaContext.js";
+
 //////////////////// NOTIFICACIONES //////////////////////
 
 import { pedirPermisoNotificaciones } from "./utils/notificaciones";
@@ -52,6 +56,9 @@ function AppContent() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
+  // Control global de la música (el reproductor vive en MusicaProvider)
+  const { detener } = useMusica();
+
   // Revisa si ya existe una sesión guardada (localStorage) al montar la app
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,6 +75,12 @@ function AppContent() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Detiene la música al cerrar sesión
+  useEffect(() => {
+    if (sessionChecked && !session) detener();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, sessionChecked]);
 
   // Solicita permiso para enviar notificaciones
   useEffect(() => {
@@ -151,7 +164,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <MusicaProvider>
+        <AppContent />
+      </MusicaProvider>
     </BrowserRouter>
   );
 }

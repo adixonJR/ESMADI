@@ -109,26 +109,26 @@ function Nosotros() {
   }, []);
 
   return (
-    <section className="px-6 py-10">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
-        .fuente-elegante { font-family: 'Playfair Display', Georgia, serif; }
-      `}</style>
-
+    <section
+      className="px-6 py-10"
+      style={{
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
+        WebkitFontSmoothing: "antialiased",
+      }}
+    >
       {/* Título */}
       <div className="text-center mb-12">
-        <div className="flex justify-center mb-5">
-          <div className="border border-[#FF7EB6]/40 p-5 rounded-full">
-            <Heart size={40} className="text-[#FF7EB6]" strokeWidth={1.5} />
-          </div>
-        </div>
-        <h1 className="fuente-elegante text-4xl sm:text-5xl font-bold tracking-tight">
-          Nosotros
-        </h1>
-        <div className="w-14 h-px bg-[#B388FF]/60 mx-auto mt-4 mb-4" />
-        <p className="text-sm sm:text-base tracking-wide opacity-70">
+        
+        {/* Encabezado */}
+        <header className="entrar mb-7">
+          <h1 className="text-[32px] font-bold tracking-tight leading-none">Nosotros</h1>
+          <p className="text-[15px] opacity-70">
           Nuestra historia, nuestros recuerdos y nuestro futuro
         </p>
+        </header>
+        
+        
       </div>
 
       <div className="max-w-5xl mx-auto space-y-8">
@@ -136,7 +136,7 @@ function Nosotros() {
         <div className="rounded-3xl p-8 border border-[#453A67]/40">
           <div className="flex items-center gap-3 mb-5">
             <BookHeart className="text-[#FF7EB6]" size={28} strokeWidth={1.5} />
-            <h2 className="fuente-elegante text-2xl font-semibold">
+            <h2 className="text-2xl font-semibold tracking-tight">
               Nuestra historia
             </h2>
           </div>
@@ -151,7 +151,7 @@ function Nosotros() {
         <div className="rounded-3xl p-8 border border-[#453A67]/40">
           <div className="flex items-center gap-3 mb-8">
             <Clock className="text-[#B388FF]" size={28} strokeWidth={1.5} />
-            <h2 className="fuente-elegante text-2xl font-semibold">
+            <h2 className="text-2xl font-semibold tracking-tight">
               Línea del tiempo
             </h2>
           </div>
@@ -205,7 +205,7 @@ function Nosotros() {
                     }}
                   >
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <h3 className="fuente-elegante text-lg sm:text-xl font-semibold">
+                      <h3 className="text-lg sm:text-xl font-semibold tracking-tight">
                         {momento.titulo}
                       </h3>
                       <span className="text-xs sm:text-sm text-[#B388FF] font-medium tracking-wide">
@@ -239,7 +239,7 @@ function Nosotros() {
               <Images size={30} className="text-[#B388FF]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Álbum de recuerdos
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -259,7 +259,7 @@ function Nosotros() {
               <Mail size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Cartas
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -279,7 +279,7 @@ function Nosotros() {
               <Music size={30} className="text-[#B388FF]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Playlist
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -299,7 +299,7 @@ function Nosotros() {
               <Utensils size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Comidas
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -319,7 +319,7 @@ function Nosotros() {
               <Clapperboard size={30} className="text-[#B388FF]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Películas y series
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -339,7 +339,7 @@ function Nosotros() {
               <Box size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Figura 3D
               </h2>
               <p className="text-sm sm:text-base opacity-80">
@@ -359,7 +359,7 @@ function Nosotros() {
               <Hourglass size={30} className="text-[#FF7EB6]" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="fuente-elegante text-xl sm:text-2xl font-semibold">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Cápsula del tiempo
               </h2>
               <p className="text-sm sm:text-base opacity-80">

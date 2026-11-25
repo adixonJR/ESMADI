@@ -1,48 +1,103 @@
 import { useNavigate } from "react-router-dom";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import {
+  Heart,
+  Cake,
+  PartyPopper,
+  Gift,
+  HeartHandshake,
+  Flower2,
+  CalendarHeart,
+  Send,
+  ChevronRight,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const sorpresas = [
+/* Ícono dentro de un "squircle" con degradado y brillo superior, como los íconos de iOS (igual que en Juegos) */
+function IconoTile({
+  icon: Icon,
+  color,
+  tamano = 44,
+}: {
+  icon: LucideIcon;
+  color: string;
+  tamano?: number;
+}) {
+  return (
+    <div
+      className={`relative shrink-0 overflow-hidden bg-gradient-to-br ${color} flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_18px_-8px_rgba(0,0,0,0.6)]`}
+      style={{ width: tamano, height: tamano, borderRadius: tamano * 0.28 }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 to-transparent" />
+      <Icon
+        className="relative text-white drop-shadow-sm"
+        size={Math.round(tamano * 0.5)}
+        strokeWidth={2.1}
+      />
+    </div>
+  );
+}
+
+const sorpresas: {
+  label: string;
+  Icono: LucideIcon;
+  color: string;
+  ruta: string;
+}[] = [
   {
     label: "San Valentín",
-    icono: "💖",
+    Icono: HeartHandshake,
+    color: "from-[#EC4899] to-[#FB923C]",
     ruta: "/SanValentin",
   },
   {
     label: "Aniversario",
-    icono: "🌹",
+    Icono: Flower2,
+    color: "from-[#D946EF] to-[#EC4899]",
     ruta: "/Aniversario",
   },
   {
     label: "Ciclo",
-    icono: "🌸",
+    Icono: CalendarHeart,
+    color: "from-[#8B5CF6] to-[#D946EF]",
     ruta: "/floo",
   },
   // ... más sorpresas aquí
 ];
 
-const eventos = [
+const eventos: {
+  titulo: string;
+  fecha: string;
+  Icono: LucideIcon;
+  color: string;
+  faltan: string;
+}[] = [
   {
     titulo: "Nuestro aniversario",
     fecha: "15 Marzo 2027",
-    icono: "❤️",
+    Icono: Heart,
+    color: "from-[#EC4899] to-[#FB923C]",
     faltan: "225 días",
   },
   {
     titulo: "Cumpleaños de Adixon",
     fecha: "10 Octubre 2026",
-    icono: "🎂",
+    Icono: Cake,
+    color: "from-[#8B5CF6] to-[#D946EF]",
     faltan: "71 días",
   },
   {
     titulo: "Cumpleaños de Mi Amor",
     fecha: "24 Diciembre 2026",
-    icono: "🎉",
+    Icono: PartyPopper,
+    color: "from-[#FACC15] to-[#FB923C]",
     faltan: "146 días",
   },
   {
     titulo: "San Valentín",
     fecha: "14 Febrero 2027",
-    icono: "💝",
+    Icono: Gift,
+    color: "from-[#D946EF] to-[#EC4899]",
     faltan: "198 días",
   },
 ];
@@ -82,7 +137,14 @@ export default function Fechas() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1B1033] text-white px-5 pt-24 pb-28">
+    <div
+      className="min-h-screen bg-[#1B1033] text-white px-5 pt-6 pb-28"
+      style={{
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
+        WebkitFontSmoothing: "antialiased",
+      }}
+    >
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(16px); }
@@ -145,12 +207,12 @@ export default function Fechas() {
 
       {/* FECHAS ESPECIALES */}
       <div className="fecha-header">
-        <h1 className="text-3xl font-bold text-[#FB923C] mb-2">
-          📅 Fechas Especiales
-        </h1>
-        <p className="text-gray-400 mb-8">
-          Nunca olvidemos nuestros momentos más importantes ❤️
+         <header className="entrar mb-7">
+          <h1 className="text-[32px] font-bold tracking-tight leading-none">Fechas Especiales</h1>
+          <p className="mt-2 text-[15px] text-[#B8B5C9] mb-8">
+          Nunca olvidemos nuestros momentos más importantes
         </p>
+        </header>
       </div>
 
       {/* BOTÓN DE PRUEBA DE NOTIFICACIÓN */}
@@ -160,12 +222,12 @@ export default function Fechas() {
         className="notificacion-boton w-full mb-10 bg-gradient-to-r from-pink-500 to-fuchsia-600 rounded-3xl p-5 shadow-lg flex items-center justify-between"
       >
         <div className="text-left">
-          <h2 className="text-lg font-bold">📲 Probar notificación</h2>
-          <p className="text-white/80 text-sm mt-1">
+          <h2 className="text-[17px] font-bold tracking-tight">Probar notificación</h2>
+          <p className="text-white/80 text-[14px] mt-1">
             Toca para enviarte un mensaje de prueba
           </p>
         </div>
-        <span className="text-2xl">💌</span>
+        <Send size={24} strokeWidth={2} className="text-white/90 shrink-0" />
       </button>
 
       <div className="space-y-5 mb-12">
@@ -175,15 +237,18 @@ export default function Fechas() {
             className="fecha-card bg-[#2A1847] rounded-3xl p-5 border border-white/10 shadow-lg"
             style={{ animationDelay: `${index * 90}ms` }}
           >
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-semibold">
-                  {evento.icono} {evento.titulo}
-                </h2>
-                <p className="text-gray-300 mt-1">{evento.fecha}</p>
+            <div className="flex justify-between items-center gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <IconoTile icon={evento.Icono} color={evento.color} tamano={44} />
+                <div className="min-w-0">
+                  <h2 className="text-[17px] font-semibold tracking-tight leading-tight">
+                    {evento.titulo}
+                  </h2>
+                  <p className="text-[#B8B5C9] text-[13px] mt-1">{evento.fecha}</p>
+                </div>
               </div>
 
-              <div className="bg-pink-500/20 text-pink-300 px-4 py-2 rounded-xl font-semibold">
+              <div className="shrink-0 bg-pink-500/20 text-pink-300 px-3.5 py-2 rounded-xl text-[13px] font-semibold">
                 {evento.faltan}
               </div>
             </div>
@@ -193,10 +258,11 @@ export default function Fechas() {
 
       {/* SORPRESAS */}
       <div className="sorpresa-titulo" style={{ animationDelay: "200ms" }}>
-        <h2 className="text-2xl font-bold text-[#FACC15] mb-2 text-center">
-          🎁 Sorpresas
+        <h2 className="text-2xl font-bold tracking-tight text-[#FACC15] mb-2 text-center flex items-center justify-center gap-2.5">
+          <Gift size={24} strokeWidth={2.1} />
+          Sorpresas
         </h2>
-        <p className="text-gray-400 mb-6 text-center">
+        <p className="text-[#B8B5C9] text-[15px] mb-6 text-center">
           Toca una sorpresa para abrirla
         </p>
       </div>
@@ -209,10 +275,15 @@ export default function Fechas() {
             style={{ animationDelay: `${300 + i * 90}ms` }}
             className="sorpresa-card w-full text-left bg-[#2A1847] rounded-3xl p-5 border border-white/10 shadow-lg flex items-center justify-between"
           >
-            <h2 className="text-lg font-semibold">
-              {s.icono} {s.label}
-            </h2>
-            <span className="sorpresa-flecha text-[#FB923C] text-xl">→</span>
+            <div className="flex items-center gap-3.5">
+              <IconoTile icon={s.Icono} color={s.color} tamano={44} />
+              <h2 className="text-[17px] font-semibold tracking-tight">{s.label}</h2>
+            </div>
+            <ChevronRight
+              size={22}
+              strokeWidth={2.2}
+              className="sorpresa-flecha text-[#FB923C] shrink-0"
+            />
           </button>
         ))}
       </div>

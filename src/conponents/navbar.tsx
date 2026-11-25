@@ -19,6 +19,7 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import supabase from "../lib/supabase.js";
+import { alternarSilencio, useSilenciado } from "../lib/Sonido.js";
 
 // Espacio entre el borde de arriba y el contenido del navbar.
 // Mientras más bajo el número, más arriba queda. Si el celular ya reserva
@@ -30,7 +31,10 @@ const MARGEN_SUPERIOR = "max(env(safe-area-inset-top, 0px), 6px)";
 const ALTO_FILA = 48;
 
 function Navbar() {
-  const [sound, setSound] = useState(true);
+  // Estado global: silencia TODA la app (audio y video)
+  const silenciado = useSilenciado();
+  const sound = !silenciado;
+
   const [vibracion, setVibracion] = useState(true);
   const [notificaciones, setNotificaciones] = useState(true);
   const [visible, setVisible] = useState(true);
@@ -190,8 +194,9 @@ function Navbar() {
           </div>
 
           <button
-            onClick={() => setSound(!sound)}
+            onClick={alternarSilencio}
             className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center active:scale-90 transition"
+            aria-label={sound ? "Silenciar la app" : "Activar el sonido"}
           >
             {sound ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
@@ -240,7 +245,7 @@ function Navbar() {
             </span>
 
             <button
-              onClick={() => setSound(!sound)}
+              onClick={alternarSilencio}
               className="flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm text-white"
             >
               <span className="flex items-center gap-2">

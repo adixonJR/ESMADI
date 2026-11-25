@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Music,
@@ -12,75 +12,32 @@ import {
   X,
   ListMusic,
   Shuffle,
-  SkipBack,
-  SkipForward,
 } from "lucide-react";
-import supabase from "../lib/supabase.js";
-
-interface Cancion {
-  id: string;
-  titulo: string;
-  artista: string;
-  motivo: string;
-  youtube_id: string | null;
-  orden: number;
-}
-
-const YT_ORIGIN = "https://www.youtube.com";
-
-// Extrae el ID de un video a partir de distintos formatos de URL de YouTube
-function extraerYoutubeId(url: string): string | null {
-  if (!url.trim()) return null;
-  const patrones = [
-    /(?:youtube\.com\/watch\?v=)([\w-]{11})/,
-    /(?:youtu\.be\/)([\w-]{11})/,
-    /(?:youtube\.com\/embed\/)([\w-]{11})/,
-    /(?:youtube\.com\/shorts\/)([\w-]{11})/,
-  ];
-  for (const patron of patrones) {
-    const match = url.match(patron);
-    if (match) return match[1];
-  }
-  return null;
-}
-
-// Portada (thumbnail) automática a partir del video de YouTube
-function obtenerPortada(youtubeId: string | null): string | null {
-  if (!youtubeId) return null;
-  return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
-}
-
-// 75 -> "1:15"
-function formatearTiempo(segundos: number): string {
-  if (!segundos || segundos < 0 || !isFinite(segundos)) return "0:00";
-  const m = Math.floor(segundos / 60);
-  const s = Math.floor(segundos % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-// Hook simple para saber si estamos en viewport mobile (< breakpoint sm de Tailwind, 640px)
-function useEsMobile(breakpointPx = 640): boolean {
-  const [esMobile, setEsMobile] = useState<boolean>(
-    typeof window !== "undefined" ? window.innerWidth < breakpointPx : false
-  );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(`(max-width: ${breakpointPx - 1}px)`);
-    const actualizar = (e: MediaQueryListEvent | MediaQueryList) =>
-      setEsMobile(e.matches);
-
-    actualizar(mediaQuery);
-    mediaQuery.addEventListener("change", actualizar);
-    return () => mediaQuery.removeEventListener("change", actualizar);
-  }, [breakpointPx]);
-
-  return esMobile;
-}
+import {
+  useMusica,
+  extraerYoutubeId,
+  obtenerPortada,
+} from "../conponents/MusicaContext";
 
 function Playlist() {
-  const [canciones, setCanciones] = useState<Cancion[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // El reproductor y la lista viven en el contexto global (MusicaProvider),
+  // por eso la música sigue sonando aunque cambies de página.
+  const {
+    canciones,
+    cargando,
+    error,
+    cargarCanciones,
+    agregarCancion,
+    eliminarCancion,
+    reproduciendoId,
+    cancionActual,
+    reproducibles,
+    pausado,
+    aleatorio,
+    setAleatorio,
+    alternarFila,
+    botonPrincipal,
+  } = useMusica();
 
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -89,113 +46,16 @@ function Playlist() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  const [reproduciendoId, setReproduciendoId] = useState<string | null>(null);
-  const [pausado, setPausado] = useState(false);
-  const [aleatorio, setAleatorio] = useState(false);
-  const [progreso, setProgreso] = useState({ t: 0, d: 0 });
-
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const irARef = useRef<(dir: 1 | -1) => void>(() => {});
-
-  const esMobile = useEsMobile();
-
-  const cancionActual = canciones.find((c) => c.id === reproduciendoId) || null;
-  const reproducibles = canciones.filter((c) => c.youtube_id);
-
-  // Cargar canciones desde Supabase al montar el componente
+  // Cargar canciones al entrar a la página
   useEffect(() => {
     cargarCanciones();
-  }, []);
+  }, [cargarCanciones]);
 
-  // Reinicia la barra de progreso al cambiar de canción
-  useEffect(() => {
-    setProgreso({ t: 0, d: 0 });
-  }, [reproduciendoId]);
-
-  // Escucha los eventos del reproductor de YouTube (estado y progreso)
-  useEffect(() => {
-    const alMensaje = (e: MessageEvent) => {
-      if (e.origin !== YT_ORIGIN) return;
-      if (e.source !== iframeRef.current?.contentWindow) return;
-
-      let data: any = e.data;
-      if (typeof data === "string") {
-        try {
-          data = JSON.parse(data);
-        } catch {
-          return;
-        }
-      }
-      if (!data) return;
-
-      let estado: number | undefined;
-      if (data.event === "onStateChange" && typeof data.info === "number") {
-        estado = data.info;
-      } else if (data.event === "infoDelivery" && data.info) {
-        if (typeof data.info.playerState === "number") {
-          estado = data.info.playerState;
-        }
-        const { currentTime, duration } = data.info;
-        if (typeof currentTime === "number" || typeof duration === "number") {
-          setProgreso((p) => ({
-            t: typeof currentTime === "number" ? currentTime : p.t,
-            d: typeof duration === "number" ? duration : p.d,
-          }));
-        }
-      }
-
-      if (estado === 0) irARef.current(1); // terminó -> siguiente
-      else if (estado === 1) setPausado(false);
-      else if (estado === 2) setPausado(true);
-    };
-
-    window.addEventListener("message", alMensaje);
-    return () => window.removeEventListener("message", alMensaje);
-  }, []);
-
-  const cargarCanciones = async () => {
-    setCargando(true);
-    setError(null);
-    const { data, error } = await supabase
-      .from("canciones")
-      .select("*")
-      .order("orden", { ascending: true });
-
-    if (error) {
-      setError("No se pudieron cargar las canciones.");
-      console.error(error);
-    } else {
-      setCanciones(data as Cancion[]);
-    }
-    setCargando(false);
-  };
-
-  const agregarCancion = async () => {
+  const manejarGuardar = async () => {
     if (!titulo.trim() || !artista.trim() || guardando) return;
     setGuardando(true);
-
-    const nuevoOrden =
-      canciones.length > 0
-        ? Math.max(...canciones.map((c) => c.orden)) + 1
-        : 1;
-
-    const { data, error } = await supabase
-      .from("canciones")
-      .insert({
-        titulo: titulo.trim(),
-        artista: artista.trim(),
-        motivo: motivo.trim(),
-        youtube_id: extraerYoutubeId(youtubeUrl),
-        orden: nuevoOrden,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      setError("No se pudo guardar la canción.");
-      console.error(error);
-    } else {
-      setCanciones((prev) => [...prev, data as Cancion]);
+    const ok = await agregarCancion({ titulo, artista, motivo, youtubeUrl });
+    if (ok) {
       setTitulo("");
       setArtista("");
       setMotivo("");
@@ -205,135 +65,18 @@ function Playlist() {
     setGuardando(false);
   };
 
-  const eliminarCancion = async (id: string) => {
-    if (!window.confirm("¿Eliminar esta canción de la playlist?")) return;
-
-    const anteriores = canciones;
-    // Actualización optimista
-    setCanciones((prev) => prev.filter((c) => c.id !== id));
-    if (reproduciendoId === id) setReproduciendoId(null);
-
-    const { error } = await supabase.from("canciones").delete().eq("id", id);
-    if (error) {
-      setError("No se pudo eliminar la canción.");
-      console.error(error);
-      setCanciones(anteriores); // revertir si falla
-    }
-  };
-
-  // ---------- Control del reproductor (postMessage a YouTube) ----------
-  const enviarComando = (func: string, args: unknown[] = []) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      YT_ORIGIN
-    );
-  };
-
-  const alCargarIframe = () => {
-    const win = iframeRef.current?.contentWindow;
-    if (!win) return;
-    win.postMessage(
-      JSON.stringify({ event: "listening", id: 1, channel: "widget" }),
-      YT_ORIGIN
-    );
-    enviarComando("addEventListener", ["onStateChange"]);
-  };
-
-  const reproducir = (id: string) => {
-    setReproduciendoId(id);
-    setPausado(false);
-  };
-
-  const alternarPausa = () => {
-    if (!cancionActual) return;
-    enviarComando(pausado ? "playVideo" : "pauseVideo");
-    setPausado(!pausado);
-  };
-
-  const irA = (dir: 1 | -1) => {
-    if (reproducibles.length === 0) return;
-
-    // "Anterior" con más de 3s reproducidos reinicia la canción
-    if (dir === -1 && progreso.t > 3) {
-      enviarComando("seekTo", [0, true]);
-      return;
-    }
-
-    const idx = reproducibles.findIndex((c) => c.id === reproduciendoId);
-    let sig = reproducibles[0];
-
-    if (aleatorio && reproducibles.length > 1) {
-      do {
-        sig = reproducibles[Math.floor(Math.random() * reproducibles.length)];
-      } while (sig.id === reproduciendoId);
-    } else {
-      const base = idx === -1 ? 0 : idx + dir;
-      sig = reproducibles[(base + reproducibles.length) % reproducibles.length];
-    }
-
-    if (sig.id === reproduciendoId) {
-      enviarComando("seekTo", [0, true]);
-      enviarComando("playVideo");
-      setPausado(false);
-      return;
-    }
-    reproducir(sig.id);
-  };
-  irARef.current = irA;
-
-  const alternarFila = (c: Cancion) => {
-    if (!c.youtube_id) return;
-    if (reproduciendoId === c.id) alternarPausa();
-    else reproducir(c.id);
-  };
-
-  const botonPrincipal = () => {
-    if (cancionActual) {
-      alternarPausa();
-      return;
-    }
-    if (reproducibles.length === 0) return;
-    const primera = aleatorio
-      ? reproducibles[Math.floor(Math.random() * reproducibles.length)]
-      : reproducibles[0];
-    reproducir(primera.id);
-  };
-
-  const buscarEnBarra = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (progreso.d <= 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-    enviarComando("seekTo", [ratio * progreso.d, true]);
-    setProgreso((p) => ({ ...p, t: ratio * p.d }));
-  };
-
   // Miniaturas para armar la portada tipo mosaico de la playlist
   const portadasDisponibles = canciones
     .map((c) => obtenerPortada(c.youtube_id))
     .filter((p): p is string => Boolean(p));
 
   const sonandoAhora = Boolean(cancionActual) && !pausado;
-  const porcentaje = progreso.d > 0 ? (progreso.t / progreso.d) * 100 : 0;
   const idPreview = extraerYoutubeId(youtubeUrl);
-
-  const iframeReproductor = (clase: string) =>
-    cancionActual && cancionActual.youtube_id ? (
-      <iframe
-        ref={iframeRef}
-        key={cancionActual.id}
-        className={clase}
-        src={`${YT_ORIGIN}/embed/${cancionActual.youtube_id}?autoplay=1&enablejsapi=1&playsinline=1&rel=0`}
-        title={cancionActual.titulo}
-        onLoad={alCargarIframe}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
-    ) : null;
 
   return (
     <section
       className={`px-4 sm:px-6 pt-6 bg-[#120B1F] min-h-screen text-white ${
-        cancionActual ? "pb-96 sm:pb-64" : "pb-32"
+        cancionActual ? "pb-80" : "pb-32"
       }`}
     >
       <style>{`
@@ -359,18 +102,8 @@ function Playlist() {
         }
         .fila-cancion { animation: fila-in 0.35s ease both; }
 
-        @keyframes player-in {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .player-flotante { animation: player-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-        @keyframes giro-lento {
-          to { transform: rotate(360deg); }
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .eq i, .fila-cancion, .player-flotante { animation: none !important; }
+          .eq i, .fila-cancion { animation: none !important; }
         }
       `}</style>
 
@@ -551,7 +284,7 @@ function Playlist() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={agregarCancion}
+                onClick={manejarGuardar}
                 disabled={guardando || !titulo.trim() || !artista.trim()}
                 className="flex-1 bg-[#FF4D8D] hover:bg-[#E63A79] transition rounded-full py-3 font-semibold tracking-wide text-white disabled:opacity-50"
               >
@@ -716,108 +449,6 @@ function Playlist() {
             })}
         </div>
       </div>
-
-      {/* ---------- REPRODUCTOR FLOTANTE ---------- */}
-      {cancionActual && cancionActual.youtube_id && (
-        <div className="player-flotante fixed bottom-20 sm:bottom-24 left-0 right-0 mx-3 sm:mx-6 z-50">
-          <div className="max-w-3xl mx-auto bg-[#1E1534]/95 backdrop-blur-xl border border-[#453A67] rounded-2xl p-3 sm:p-4 shadow-2xl shadow-black/50">
-            {/* Fila superior: portada + info + video compacto + cerrar */}
-            <div className="flex items-center gap-3 sm:gap-4">
-              <img
-                src={obtenerPortada(cancionActual.youtube_id) || ""}
-                alt=""
-                className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="fuente-elegante text-white font-semibold text-sm sm:text-base truncate">
-                  {cancionActual.titulo}
-                </p>
-                <p className="text-[#B388FF] text-xs truncate">
-                  {cancionActual.artista}
-                </p>
-              </div>
-
-              {/* Video compacto: solo en desktop */}
-              {!esMobile && (
-                <div className="w-40 aspect-video rounded-lg overflow-hidden shrink-0 border border-[#453A67] bg-black">
-                  {iframeReproductor("w-full h-full")}
-                </div>
-              )}
-
-              <button
-                onClick={() => setReproduciendoId(null)}
-                className="text-[#8A83A0] hover:text-white transition shrink-0 self-start p-1"
-                aria-label="Cerrar reproductor"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Controles */}
-            <div className="flex items-center justify-center gap-5 mt-3">
-              <button
-                onClick={() => setAleatorio(!aleatorio)}
-                className={`transition ${
-                  aleatorio ? "text-[#FF7EB6]" : "text-[#8A83A0] hover:text-white"
-                }`}
-                aria-label="Modo aleatorio"
-              >
-                <Shuffle size={18} />
-              </button>
-              <button
-                onClick={() => irA(-1)}
-                className="text-white hover:text-[#FF7EB6] transition"
-                aria-label="Anterior"
-              >
-                <SkipBack size={22} fill="currentColor" />
-              </button>
-              <button
-                onClick={alternarPausa}
-                className="w-11 h-11 rounded-full bg-white text-[#120B1F] hover:scale-105 active:scale-95 transition flex items-center justify-center"
-                aria-label={pausado ? "Reproducir" : "Pausar"}
-              >
-                {pausado ? (
-                  <Play size={20} fill="currentColor" className="ml-0.5" />
-                ) : (
-                  <Pause size={20} fill="currentColor" />
-                )}
-              </button>
-              <button
-                onClick={() => irA(1)}
-                className="text-white hover:text-[#FF7EB6] transition"
-                aria-label="Siguiente"
-              >
-                <SkipForward size={22} fill="currentColor" />
-              </button>
-              <span className="w-[18px]" />
-            </div>
-
-            {/* Barra de progreso */}
-            <div className="flex items-center gap-2 mt-3 text-[11px] text-[#8A83A0] tabular-nums">
-              <span className="w-9 text-right">{formatearTiempo(progreso.t)}</span>
-              <div
-                onClick={buscarEnBarra}
-                className="relative flex-1 h-4 flex items-center cursor-pointer group"
-              >
-                <div className="w-full h-1 rounded-full bg-white/15 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#B388FF] to-[#FF4D8D] rounded-full"
-                    style={{ width: `${porcentaje}%` }}
-                  />
-                </div>
-              </div>
-              <span className="w-9">{formatearTiempo(progreso.d)}</span>
-            </div>
-
-            {/* Video grande: solo en móvil */}
-            {esMobile && (
-              <div className="mt-3 rounded-xl overflow-hidden border border-[#453A67] aspect-video bg-black">
-                {iframeReproductor("w-full h-full")}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </section>
   );
 }
