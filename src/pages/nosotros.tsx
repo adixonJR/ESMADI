@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Clock,
   Images,
-  Heart,
   Mail,
   BookHeart,
   Users,
