@@ -1,9 +1,22 @@
 import { Link } from "react-router-dom";
 import { Flame, Brain, Target, HeartHandshake, ChevronRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+/* Ajusta la ruta o la extensión si tu archivo es distinto (.wav, .ogg, etc.) */
+import openGameSound from "../assets/OpenGame.mp3";
 
 /* Misma curva de animación que Inicio.tsx (resorte suave estilo iOS) */
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+
+/* Se crea fuera del componente para que siga sonando aunque cambie la pantalla */
+const sonidoAbrir = new Audio(openGameSound);
+sonidoAbrir.preload = "auto";
+
+function reproducirSonidoAbrir() {
+  sonidoAbrir.currentTime = 0;
+  sonidoAbrir.play().catch(() => {
+    /* si el navegador bloquea el audio, el juego se abre igual */
+  });
+}
 
 interface Juego {
   id: number;
@@ -202,6 +215,7 @@ function Juegos() {
                     to={juego.to}
                     draggable={false}
                     onClick={() => {
+                      reproducirSonidoAbrir();
                       try {
                         navigator.vibrate?.(8);
                       } catch {

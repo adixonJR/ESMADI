@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,6 +15,8 @@ import {
   Clock3,
   Loader2,
   Ticket,
+  Play,
+  Video as VideoIcon,
 } from "lucide-react";
 import supabase from "../lib/supabase.js";
 
@@ -29,8 +32,15 @@ interface Titulo {
   calificacion: number | null;
   notas: string | null;
   poster: string | null;
+  video_path: string | null;
   created_at: string;
 }
+
+const BUCKET_VIDEOS = "videos";
+const MAX_VIDEO_MB = 40;
+
+const urlVideo = (path: string) =>
+  supabase.storage.from(BUCKET_VIDEOS).getPublicUrl(path).data.publicUrl;
 
 function PeliculasSeries() {
   const [titulos, setTitulos] = useState<Titulo[]>([]);
@@ -39,6 +49,7 @@ function PeliculasSeries() {
   const [filtro, setFiltro] = useState<Filtro>("Todas");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [tituloEditando, setTituloEditando] = useState<Titulo | null>(null);
+  const [videoAbierto, setVideoAbierto] = useState<Titulo | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState<Tipo>("Película");
@@ -46,10 +57,22 @@ function PeliculasSeries() {
   const [calificacion, setCalificacion] = useState(5);
   const [notas, setNotas] = useState("");
   const [poster, setPoster] = useState("");
+  const [videoArchivo, setVideoArchivo] = useState<File | null>(null);
+  const [videoActual, setVideoActual] = useState<string | null>(null);
+  const [errorForm, setErrorForm] = useState<string | null>(null);
 
   useEffect(() => {
     cargarTitulos();
   }, []);
+
+  useEffect(() => {
+    if (!videoAbierto) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setVideoAbierto(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [videoAbierto]);
 
   const cargarTitulos = async () => {
     setCargando(true);
@@ -73,6 +96,9 @@ function PeliculasSeries() {
     setCalificacion(5);
     setNotas("");
     setPoster("");
+    setVideoArchivo(null);
+    setVideoActual(null);
+    setErrorForm(null);
   };
 
   const abrirModalNuevo = () => {
@@ -89,6 +115,9 @@ function PeliculasSeries() {
     setCalificacion(t.calificacion ?? 5);
     setNotas(t.notas ?? "");
     setPoster(t.poster ?? "");
+    setVideoArchivo(null);
+    setVideoActual(t.video_path ?? null);
+    setErrorForm(null);
     setModalAbierto(true);
   };
 
@@ -98,9 +127,59 @@ function PeliculasSeries() {
     limpiarFormulario();
   };
 
+  const elegirVideo = (e: ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith("video/")) {
+      setErrorForm("El archivo debe ser un video.");
+      return;
+    }
+    if (archivo.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setErrorForm(`El video pesa demasiado. Máximo ${MAX_VIDEO_MB} MB.`);
+      return;
+    }
+    setErrorForm(null);
+    setVideoArchivo(archivo);
+  };
+
+  const quitarVideo = () => {
+    if (videoArchivo) {
+      setVideoArchivo(null);
+    } else {
+      setVideoActual(null);
+    }
+  };
+
   const guardarTitulo = async () => {
     if (!nombre.trim()) return;
     setGuardando(true);
+    setErrorForm(null);
+
+    const anteriorPath = tituloEditando?.video_path ?? null;
+    let videoPath: string | null = videoActual;
+
+    // 1) Subir el video nuevo (si se eligió uno)
+    if (videoArchivo) {
+      const ext = (videoArchivo.name.split(".").pop() || "mp4").toLowerCase();
+      const nuevoPath = `${crypto.randomUUID()}.${ext}`;
+      const { error: errSubida } = await supabase.storage
+        .from(BUCKET_VIDEOS)
+        .upload(nuevoPath, videoArchivo, {
+          contentType: videoArchivo.type,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (errSubida) {
+        console.error("Error al subir video:", errSubida.message);
+        setErrorForm("No se pudo subir el video. Intenta de nuevo.");
+        setGuardando(false);
+        return;
+      }
+      videoPath = nuevoPath;
+    }
 
     const payload = {
       nombre: nombre.trim(),
@@ -109,7 +188,11 @@ function PeliculasSeries() {
       calificacion: estado === "Vista" ? calificacion : null,
       notas: notas.trim() || null,
       poster: poster.trim() || null,
+      video_path: videoPath,
     };
+
+    // 2) Guardar en la tabla
+    let guardado: Titulo | null = null;
 
     if (tituloEditando) {
       const { data, error } = await supabase
@@ -122,10 +205,7 @@ function PeliculasSeries() {
       if (error) {
         console.error("Error al editar título:", error.message);
       } else if (data) {
-        setTitulos((prev) =>
-          prev.map((t) => (t.id === tituloEditando.id ? (data as Titulo) : t))
-        );
-        cerrarModal();
+        guardado = data as Titulo;
       }
     } else {
       const { data, error } = await supabase
@@ -137,26 +217,53 @@ function PeliculasSeries() {
       if (error) {
         console.error("Error al agregar título:", error.message);
       } else if (data) {
-        setTitulos((prev) => [data as Titulo, ...prev]);
-        cerrarModal();
+        guardado = data as Titulo;
       }
     }
 
+    // Si falló el guardado, borra el video recién subido para no dejar basura
+    if (!guardado) {
+      if (videoArchivo && videoPath) {
+        await supabase.storage.from(BUCKET_VIDEOS).remove([videoPath]);
+      }
+      setErrorForm("No se pudo guardar. Intenta de nuevo.");
+      setGuardando(false);
+      return;
+    }
+
+    const nuevo: Titulo = guardado;
+    if (tituloEditando) {
+      setTitulos((prev) => prev.map((t) => (t.id === nuevo.id ? nuevo : t)));
+    } else {
+      setTitulos((prev) => [nuevo, ...prev]);
+    }
+
+    // 3) Si se reemplazó o quitó el video anterior, bórralo del bucket
+    if (anteriorPath && anteriorPath !== videoPath) {
+      await supabase.storage.from(BUCKET_VIDEOS).remove([anteriorPath]);
+    }
+
     setGuardando(false);
+    cerrarModal();
   };
 
-  const eliminarTitulo = async (id: string) => {
+  const eliminarTitulo = async (t: Titulo) => {
     const anterior = titulos;
-    setTitulos((prev) => prev.filter((t) => t.id !== id));
+    setTitulos((prev) => prev.filter((item) => item.id !== t.id));
 
     const { error } = await supabase
       .from("peliculas_series")
       .delete()
-      .eq("id", id);
+      .eq("id", t.id);
 
     if (error) {
       console.error("Error al eliminar título:", error.message);
       setTitulos(anterior);
+      return;
+    }
+
+    if (t.video_path) {
+      await supabase.storage.from(BUCKET_VIDEOS).remove([t.video_path]);
     }
   };
 
@@ -304,6 +411,17 @@ function PeliculasSeries() {
                 {/* Degradado inferior para texto */}
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/95 via-black/50 to-transparent pointer-events-none" />
 
+                {/* Botón de reproducir el edit (solo si tiene video) */}
+                {t.video_path && (
+                  <button
+                    onClick={() => setVideoAbierto(t)}
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-black/45 backdrop-blur-md border border-white/30 text-white shadow-lg transition active:scale-95 hover:bg-black/60"
+                    aria-label={`Ver el edit de ${t.nombre}`}
+                  >
+                    <Play size={22} className="ml-0.5 fill-white" />
+                  </button>
+                )}
+
                 {/* Badge de estado, arriba a la izquierda */}
                 <button
                   onClick={() => alternarEstado(t)}
@@ -331,7 +449,7 @@ function PeliculasSeries() {
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => eliminarTitulo(t.id)}
+                    onClick={() => eliminarTitulo(t)}
                     className="bg-black/50 backdrop-blur-sm rounded-full p-1.5 text-white/90 hover:text-[#FF4D8D] transition"
                     aria-label="Eliminar"
                   >
@@ -377,11 +495,45 @@ function PeliculasSeries() {
         )}
       </div>
 
+      {/* Visor del video (edit) */}
+      {videoAbierto?.video_path && (
+        <div
+          className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center px-4"
+          onClick={() => setVideoAbierto(null)}
+        >
+          <button
+            onClick={() => setVideoAbierto(null)}
+            className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
+            aria-label="Cerrar video"
+          >
+            <X size={22} />
+          </button>
+
+          <div
+            className="w-full max-w-sm sm:max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <video
+              key={videoAbierto.video_path}
+              src={urlVideo(videoAbierto.video_path)}
+              controls
+              autoPlay
+              loop
+              playsInline
+              className="w-full max-h-[80vh] rounded-2xl bg-black shadow-2xl"
+            />
+            <p className="fuente-elegante mt-3 text-center text-base font-semibold">
+              {videoAbierto.nombre}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Modal agregar / editar título */}
       {modalAbierto && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 sm:px-6 z-[100]"
-          onClick={cerrarModal}
+          onClick={guardando ? undefined : cerrarModal}
         >
           <div
             className="bg-[#241539] rounded-3xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto border border-[#453A67]/40"
@@ -393,7 +545,8 @@ function PeliculasSeries() {
               </h2>
               <button
                 onClick={cerrarModal}
-                className="opacity-70 hover:opacity-100 transition"
+                disabled={guardando}
+                className="opacity-70 hover:opacity-100 transition disabled:opacity-30"
               >
                 <X size={22} />
               </button>
@@ -436,6 +589,45 @@ function PeliculasSeries() {
                 className="w-full rounded-xl px-4 py-2.5 bg-[#1B1033] border border-[#453A67]/40 outline-none focus:border-[#B388FF]/60 transition text-sm"
               />
 
+              {/* Video corto (edit) */}
+              <div>
+                <input
+                  id="input-video-edit"
+                  type="file"
+                  accept="video/*"
+                  onChange={elegirVideo}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="input-video-edit"
+                  className="flex items-center gap-2 w-full rounded-xl px-4 py-2.5 bg-[#1B1033] border border-dashed border-[#453A67]/70 hover:border-[#B388FF]/60 transition text-sm cursor-pointer"
+                >
+                  <VideoIcon size={18} className="text-[#B388FF] shrink-0" />
+                  <span className="truncate opacity-80">
+                    {videoArchivo
+                      ? videoArchivo.name
+                      : videoActual
+                      ? "Video guardado (toca para cambiarlo)"
+                      : "Agregar video corto (opcional)"}
+                  </span>
+                </label>
+
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[11px] opacity-50">
+                    Un edit de pocos segundos, máx. {MAX_VIDEO_MB} MB.
+                  </p>
+                  {(videoArchivo || videoActual) && (
+                    <button
+                      type="button"
+                      onClick={quitarVideo}
+                      className="shrink-0 text-xs text-[#FF4D8D] hover:underline"
+                    >
+                      {videoArchivo ? "Quitar selección" : "Quitar video"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <textarea
                 placeholder="Notas (opcional)"
                 value={notas}
@@ -469,13 +661,21 @@ function PeliculasSeries() {
               )}
             </div>
 
+            {errorForm && (
+              <p className="mt-4 text-sm text-[#FF7EB6]">{errorForm}</p>
+            )}
+
             <button
               onClick={guardarTitulo}
               disabled={!nombre.trim() || guardando}
               className="w-full mt-6 bg-[#FF4D8D] hover:bg-[#E63A79] disabled:opacity-40 disabled:cursor-not-allowed transition rounded-full py-3 font-semibold tracking-wide text-white flex items-center justify-center gap-2"
             >
               {guardando && <Loader2 size={18} className="animate-spin" />}
-              {tituloEditando ? "Guardar cambios" : "Guardar"}
+              {guardando && videoArchivo
+                ? "Subiendo video..."
+                : tituloEditando
+                ? "Guardar cambios"
+                : "Guardar"}
             </button>
           </div>
         </div>
