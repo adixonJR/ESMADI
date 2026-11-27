@@ -1,6 +1,9 @@
 import {
+  memo,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type CSSProperties,
@@ -75,6 +78,14 @@ type Fase = "cerrado" | "abriendo" | "zoom" | "fin";
 const EASE_LIBRO = "cubic-bezier(0.45, 0.05, 0.25, 1)";
 const DURACION_TAPA = 1300;
 const DURACION_HOJA = 950;
+const DURACION_APERTURA = 1950; // desde que empieza a abrirse hasta que arranca el zoom
+
+// El libro espera (cerrado) a tener las fotos listas para que la animacion no se trabe
+const MIN_CERRADO = 600; // tiempo minimo que se ve el libro cerrado
+const ESPERA_DATOS = 3000; // maximo esperando a Supabase
+const ESPERA_FOTOS = 2000; // maximo preparando las miniaturas
+const MAX_FOTOS_LIBRO = 12; // fotos que se usan dentro del libro
+const LADO_MINIATURA = 360; // tamaño (px) de las miniaturas del libro
 
 const PAPEL =
   "linear-gradient(90deg, #cfc4aa 0%, #efe6cf 7%, #faf5e6 40%, #f6efdb 100%)";
@@ -90,6 +101,71 @@ const cara: CSSProperties = {
   backfaceVisibility: "hidden",
   WebkitBackfaceVisibility: "hidden",
 };
+
+// Reduce una foto a una miniatura liviana: las fotos originales pesan mucho
+// y decodificarlas en plena animacion es lo que hacia que se viera lageado.
+function crearMiniatura(url: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      try {
+        const escala = Math.min(
+          1,
+          LADO_MINIATURA / Math.max(img.naturalWidth, img.naturalHeight)
+        );
+        const w = Math.max(1, Math.round(img.naturalWidth * escala));
+        const h = Math.max(1, Math.round(img.naturalHeight * escala));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(url);
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => resolve(blob ? URL.createObjectURL(blob) : url),
+          "image/jpeg",
+          0.82
+        );
+      } catch {
+        resolve(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
+// Prepara las miniaturas del libro (con un tiempo maximo de espera)
+async function prepararFotosLibro(
+  urls: string[],
+  maxMs: number,
+  blobs: { current: string[] }
+): Promise<string[]> {
+  if (urls.length === 0) return [];
+  const listas: string[] = [];
+  let cerrado = false;
+
+  const tareas = urls.map(async (u) => {
+    const mini = await crearMiniatura(u);
+    const esBlob = mini.startsWith("blob:");
+    if (cerrado) {
+      if (esBlob) URL.revokeObjectURL(mini);
+      return;
+    }
+    if (esBlob) blobs.current.push(mini);
+    listas.push(mini);
+  });
+
+  await Promise.race([
+    Promise.all(tareas),
+    new Promise<void>((r) => setTimeout(r, maxMs)),
+  ]);
+  cerrado = true;
+  return listas;
+}
 
 // Mini collage de fotos tipo "polaroid" para las paginas del libro
 function Collage({ urls }: { urls: string[] }) {
@@ -123,6 +199,7 @@ function Collage({ urls }: { urls: string[] }) {
             src={u}
             alt=""
             draggable={false}
+            decoding="async"
             style={{
               width: "100%",
               height: "100%",
@@ -162,6 +239,7 @@ function Hoja({
         inset: 0,
         transformOrigin: "left center",
         transformStyle: "preserve-3d",
+        willChange: "transform",
         transform: abierto
           ? `translateZ(${zAbierto}px) rotateY(${angulo}deg)`
           : `translateZ(${zCerrado}px) rotateY(0deg)`,
@@ -184,6 +262,7 @@ function Hoja({
             inset: 0,
             background: "rgba(20,10,35,0.55)",
             opacity: abierto ? 1 : 0,
+            willChange: "opacity",
             transition: `opacity ${t}`,
           }}
         />
@@ -212,6 +291,7 @@ function Hoja({
             inset: 0,
             background: "rgba(20,10,35,0.55)",
             opacity: abierto ? 0 : 1,
+            willChange: "opacity",
             transition: `opacity ${t}`,
           }}
         />
@@ -220,34 +300,18 @@ function Hoja({
   );
 }
 
-function Album() {
-  // Fase de la animacion: cerrado -> abriendo -> zoom -> fin
-  const [fase, setFase] = useState<Fase>("cerrado");
-
-  useEffect(() => {
-    const t1 = setTimeout(
-      () => setFase((p) => (p === "cerrado" ? "abriendo" : p)),
-      450
-    );
-    const t2 = setTimeout(
-      () => setFase((p) => (p === "abriendo" ? "zoom" : p)),
-      2400
-    );
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (fase !== "zoom") return;
-    const t = setTimeout(() => setFase("fin"), 1300);
-    return () => clearTimeout(t);
-  }, [fase]);
-
+// ---------- Libro que se abre (memoizado: no se vuelve a renderizar con el resto del album) ----------
+const LibroIntro = memo(function LibroIntro({
+  fase,
+  urls,
+  onSaltar,
+}: {
+  fase: Fase;
+  urls: string[];
+  onSaltar: () => void;
+}) {
   const abierto = fase !== "cerrado";
   const zoom = fase === "zoom" || fase === "fin";
-  const listo = zoom;
 
   const transformLibro = zoom
     ? "translateX(50%) rotateX(0deg) rotateZ(0deg) translateZ(1050px)"
@@ -259,6 +323,323 @@ function Album() {
     ? "transform 1000ms cubic-bezier(0.55, 0.05, 0.75, 0.45)"
     : `transform 1700ms ${EASE_LIBRO}`;
 
+  // Devuelve 4 fotos para cada pagina (se repiten si hay pocas)
+  const grupo = (i: number): string[] =>
+    urls.length === 0
+      ? []
+      : Array.from({ length: 4 }, (_, k) => urls[(i * 4 + k) % urls.length]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center cursor-pointer"
+      onClick={onSaltar}
+      style={{
+        background:
+          "radial-gradient(ellipse at center, #2a1847 0%, #1B1033 65%, #120a22 100%)",
+        opacity: zoom ? 0 : 1,
+        willChange: "opacity",
+        transition: "opacity 600ms ease-in-out 500ms",
+        pointerEvents: zoom ? "none" : "auto",
+      }}
+    >
+      {/* Escena 3D */}
+      <div
+        style={{
+          perspective: "2000px",
+          perspectiveOrigin: "50% 45%",
+        }}
+      >
+        {/* Libro completo: se centra al abrirse y hace zoom al final */}
+        <div
+          style={{
+            position: "relative",
+            width: "min(66vw, 290px)",
+            aspectRatio: "3 / 4",
+            transformStyle: "preserve-3d",
+            transformOrigin: "0% 50%",
+            willChange: "transform",
+            transform: transformLibro,
+            transition: transicionLibro,
+          }}
+        >
+          {/* Sombra sobre la mesa (box-shadow en vez de blur: no se repinta cada cuadro) */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              boxShadow: "0 0 22px 14px rgba(0,0,0,0.55)",
+              borderRadius: 12,
+              transformOrigin: "left center",
+              willChange: "transform",
+              transform: abierto
+                ? "translateX(-100%) translateY(10px) translateZ(-14px) scaleX(2.04)"
+                : "translateX(0%) translateY(10px) translateZ(-14px) scaleX(1.04)",
+              transition: `transform ${DURACION_TAPA + 300}ms ${EASE_LIBRO}`,
+            }}
+          />
+
+          {/* Contratapa */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "-3px -4px -3px 0",
+              transform: "translateZ(-3px)",
+              background: "linear-gradient(225deg, #2d1a52, #1B1033)",
+              borderRadius: "3px 12px 12px 3px",
+            }}
+          />
+
+          {/* Pagina base (derecha) con el grosor de las hojas */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "2px 3px 2px 0",
+              background: PAPEL,
+              borderRadius: "0 6px 6px 0",
+              boxShadow:
+                "1px 1px 0 #d8cdb2, 2px 2px 0 #f4ecd6, 3px 3px 0 #d8cdb2, 4px 4px 0 #f4ecd6",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: "18px 14px 18px 22px",
+                background: LINEAS,
+              }}
+            />
+            {urls.length > 0 ? (
+              <Collage urls={grupo(0)} />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Heart size={44} className="text-pink-400/20 fill-pink-400/10" />
+              </div>
+            )}
+          </div>
+
+          {/* Hojas que se voltean despues de la tapa */}
+          <Hoja
+            abierto={abierto}
+            retraso={420}
+            angulo={-177.5}
+            zCerrado={4}
+            zAbierto={1}
+            anverso={grupo(1)}
+            reverso={grupo(2)}
+          />
+          <Hoja
+            abierto={abierto}
+            retraso={640}
+            angulo={-176}
+            zCerrado={3}
+            zAbierto={2}
+            anverso={grupo(3)}
+            reverso={grupo(4)}
+          />
+          <Hoja
+            abierto={abierto}
+            retraso={860}
+            angulo={-174.5}
+            zCerrado={2}
+            zAbierto={3}
+            anverso={grupo(5)}
+            reverso={grupo(6)}
+          />
+
+          {/* Tapa delantera (bisagra en el lomo, a la izquierda) */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              transformOrigin: "left center",
+              transformStyle: "preserve-3d",
+              willChange: "transform",
+              transform: abierto
+                ? "translateZ(-3px) rotateY(-179deg)"
+                : "translateZ(6px) rotateY(0deg)",
+              transition: `transform ${DURACION_TAPA}ms ${EASE_LIBRO}`,
+            }}
+          >
+            {/* Exterior de la tapa */}
+            <div
+              style={{
+                ...cara,
+                transform: "translateZ(2px)",
+                borderRadius: "3px 12px 12px 3px",
+                background: CUERO,
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.05)",
+              }}
+            >
+              {/* Textura de cuero */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px)",
+                }}
+              />
+              {/* Canal de la bisagra */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 18,
+                  background:
+                    "linear-gradient(90deg, rgba(0,0,0,0.6), rgba(255,255,255,0.08) 55%, rgba(0,0,0,0.35) 75%, transparent)",
+                }}
+              />
+              {/* Marco dorado */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "14px 14px 14px 28px",
+                  border: "1px solid rgba(250,204,21,0.35)",
+                  borderRadius: 8,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "19px 19px 19px 33px",
+                  border: "1px solid rgba(250,204,21,0.15)",
+                  borderRadius: 5,
+                }}
+              />
+              {/* Titulo */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "0 0 0 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                }}
+              >
+                <Heart
+                  size={34}
+                  className="text-[#EC4899] fill-[#EC4899] mb-3"
+                  style={{
+                    filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.6))",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: "#fff",
+                    letterSpacing: "0.05em",
+                    textShadow: "0 2px 5px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  Nuestro
+                </span>
+                <span
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: "#EC4899",
+                    letterSpacing: "0.05em",
+                    textShadow: "0 2px 5px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  Álbum
+                </span>
+                <div
+                  style={{
+                    width: 40,
+                    height: 1,
+                    background: "rgba(250,204,21,0.6)",
+                    marginTop: 10,
+                  }}
+                />
+              </div>
+              {/* Brillo que cruza la tapa al abrirse (se mueve con transform, no repinta) */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  width: "100%",
+                  background:
+                    "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.18) 48%, transparent 60%)",
+                  willChange: "transform",
+                  transform: abierto ? "translateX(-100%)" : "translateX(100%)",
+                  transition: `transform ${DURACION_TAPA}ms ${EASE_LIBRO}`,
+                }}
+              />
+              {/* Sombra segun el giro */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(10,5,25,0.65)",
+                  opacity: abierto ? 1 : 0,
+                  willChange: "opacity",
+                  transition: `opacity ${DURACION_TAPA}ms ${EASE_LIBRO}`,
+                }}
+              />
+            </div>
+
+            {/* Interior de la tapa */}
+            <div
+              style={{
+                ...cara,
+                transform: "rotateY(180deg) translateZ(2px)",
+                borderRadius: "3px 12px 12px 3px",
+                background: "#1B1033",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "8px 8px 8px 10px",
+                  borderRadius: 6,
+                  background:
+                    "repeating-linear-gradient(45deg, #3b2563 0px, #3b2563 6px, #34205a 6px, #34205a 12px)",
+                  border: "1px solid rgba(250,204,21,0.25)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(90deg, rgba(0,0,0,0.5), transparent 28%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(10,5,25,0.65)",
+                  opacity: abierto ? 0 : 1,
+                  willChange: "opacity",
+                  transition: `opacity ${DURACION_TAPA}ms ${EASE_LIBRO}`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p
+        className="absolute bottom-10 text-xs text-white/30 tracking-wide"
+        style={{ opacity: zoom ? 0 : 1, transition: "opacity 300ms" }}
+      >
+        Toca para saltar
+      </p>
+    </div>
+  );
+});
+
+function Album() {
   // ---------- Fotos (compartidas en Supabase) ----------
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -299,14 +680,99 @@ function Album() {
     [fotos]
   );
 
-  // Devuelve 4 fotos para cada pagina (se repiten si hay pocas)
-  const grupo = (i: number): string[] =>
-    urlsLibro.length === 0
-      ? []
-      : Array.from(
-          { length: 4 },
-          (_, k) => urlsLibro[(i * 4 + k) % urlsLibro.length]
-        );
+  // ---------- Animacion: cerrado -> abriendo -> zoom -> fin ----------
+  // El libro se queda cerrado mientras se cargan y reducen las fotos; asi,
+  // cuando empieza a abrirse ya no hay nada pesado que cargar a media animacion.
+  const [fase, setFase] = useState<Fase>("cerrado");
+  const [urlsIntro, setUrlsIntro] = useState<string[]>([]);
+
+  const urlsRef = useRef<string[]>([]);
+  urlsRef.current = urlsLibro;
+  const montadoEn = useRef(performance.now());
+  const arrancoRef = useRef(false);
+  const timerArranque = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  const blobsRef = useRef<string[]>([]);
+
+  const arrancar = useCallback((urls: string[]) => {
+    if (arrancoRef.current) return;
+    arrancoRef.current = true;
+    const espera = Math.max(
+      0,
+      MIN_CERRADO - (performance.now() - montadoEn.current)
+    );
+    timerArranque.current = setTimeout(() => {
+      setUrlsIntro(urls);
+      setFase((p) => (p === "cerrado" ? "abriendo" : p));
+    }, espera);
+  }, []);
+
+  useEffect(() => {
+    let vivo = true;
+
+    if (cargando) {
+      // Plan B: si Supabase tarda demasiado, el libro se abre igual
+      const t = setTimeout(() => arrancar([]), ESPERA_DATOS);
+      return () => {
+        vivo = false;
+        clearTimeout(t);
+      };
+    }
+
+    prepararFotosLibro(
+      urlsRef.current.slice(0, MAX_FOTOS_LIBRO),
+      ESPERA_FOTOS,
+      blobsRef
+    ).then((urls) => {
+      if (vivo) arrancar(urls);
+    });
+
+    return () => {
+      vivo = false;
+    };
+  }, [cargando, arrancar]);
+
+  // Limpieza al desmontar
+  useEffect(
+    () => () => {
+      clearTimeout(timerArranque.current);
+      blobsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      blobsRef.current = [];
+    },
+    []
+  );
+
+  // abriendo -> zoom
+  useEffect(() => {
+    if (fase !== "abriendo") return;
+    const t = setTimeout(
+      () => setFase((p) => (p === "abriendo" ? "zoom" : p)),
+      DURACION_APERTURA
+    );
+    return () => clearTimeout(t);
+  }, [fase]);
+
+  // zoom -> fin
+  useEffect(() => {
+    if (fase !== "zoom") return;
+    const t = setTimeout(() => setFase("fin"), 1300);
+    return () => clearTimeout(t);
+  }, [fase]);
+
+  // Al terminar, se liberan las miniaturas del libro
+  useEffect(() => {
+    if (fase !== "fin") return;
+    blobsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    blobsRef.current = [];
+  }, [fase]);
+
+  const saltarAnimacion = useCallback(
+    () => setFase((p) => (p === "fin" ? p : "zoom")),
+    []
+  );
+
+  const listo = fase === "zoom" || fase === "fin";
 
   // ---------- Busqueda ----------
   const [busqueda, setBusqueda] = useState("");
@@ -576,6 +1042,7 @@ function Album() {
                   <img
                     src={foto.imagen_url}
                     alt={foto.descripcion}
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
@@ -940,308 +1407,7 @@ function Album() {
 
       {/* ---------- Animacion realista del libro que se abre ---------- */}
       {fase !== "fin" && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center cursor-pointer"
-          onClick={() => setFase((p) => (p === "fin" ? p : "zoom"))}
-          style={{
-            background:
-              "radial-gradient(ellipse at center, #2a1847 0%, #1B1033 65%, #120a22 100%)",
-            opacity: zoom ? 0 : 1,
-            transition: "opacity 600ms ease-in-out 600ms",
-            pointerEvents: zoom ? "none" : "auto",
-          }}
-        >
-          {/* Escena 3D */}
-          <div
-            style={{
-              perspective: "2000px",
-              perspectiveOrigin: "50% 45%",
-              opacity: zoom ? 0 : 1,
-              transition: "opacity 500ms ease-in 400ms",
-            }}
-          >
-            {/* Libro completo: se centra al abrirse y hace zoom al final */}
-            <div
-              style={{
-                position: "relative",
-                width: "min(66vw, 290px)",
-                aspectRatio: "3 / 4",
-                transformStyle: "preserve-3d",
-                transformOrigin: "0% 50%",
-                transform: transformLibro,
-                transition: transicionLibro,
-              }}
-            >
-              {/* Sombra sobre la mesa */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.75)",
-                  filter: "blur(18px)",
-                  borderRadius: 12,
-                  transformOrigin: "left center",
-                  transform: abierto
-                    ? "translateX(-100%) translateY(10px) translateZ(-14px) scaleX(2.04)"
-                    : "translateX(0%) translateY(10px) translateZ(-14px) scaleX(1.04)",
-                  transition: `transform ${DURACION_TAPA + 300}ms ${EASE_LIBRO}`,
-                }}
-              />
-
-              {/* Contratapa */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: "-3px -4px -3px 0",
-                  transform: "translateZ(-3px)",
-                  background: "linear-gradient(225deg, #2d1a52, #1B1033)",
-                  borderRadius: "3px 12px 12px 3px",
-                }}
-              />
-
-              {/* Pagina base (derecha) con el grosor de las hojas */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: "2px 3px 2px 0",
-                  background: PAPEL,
-                  borderRadius: "0 6px 6px 0",
-                  boxShadow:
-                    "1px 1px 0 #d8cdb2, 2px 2px 0 #f4ecd6, 3px 3px 0 #d8cdb2, 4px 4px 0 #f4ecd6",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "18px 14px 18px 22px",
-                    background: LINEAS,
-                  }}
-                />
-                {urlsLibro.length > 0 ? (
-                  <Collage urls={grupo(0)} />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Heart
-                      size={44}
-                      className="text-pink-400/20 fill-pink-400/10"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Hojas que se voltean despues de la tapa */}
-              <Hoja
-                abierto={abierto}
-                retraso={420}
-                angulo={-177.5}
-                zCerrado={4}
-                zAbierto={1}
-                anverso={grupo(1)}
-                reverso={grupo(2)}
-              />
-              <Hoja
-                abierto={abierto}
-                retraso={640}
-                angulo={-176}
-                zCerrado={3}
-                zAbierto={2}
-                anverso={grupo(3)}
-                reverso={grupo(4)}
-              />
-              <Hoja
-                abierto={abierto}
-                retraso={860}
-                angulo={-174.5}
-                zCerrado={2}
-                zAbierto={3}
-                anverso={grupo(5)}
-                reverso={grupo(6)}
-              />
-
-              {/* Tapa delantera (bisagra en el lomo, a la izquierda) */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  transformOrigin: "left center",
-                  transformStyle: "preserve-3d",
-                  transform: abierto
-                    ? "translateZ(-3px) rotateY(-179deg)"
-                    : "translateZ(6px) rotateY(0deg)",
-                  transition: `transform ${DURACION_TAPA}ms ${EASE_LIBRO}`,
-                }}
-              >
-                {/* Exterior de la tapa */}
-                <div
-                  style={{
-                    ...cara,
-                    transform: "translateZ(2px)",
-                    borderRadius: "3px 12px 12px 3px",
-                    background: CUERO,
-                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.05)",
-                  }}
-                >
-                  {/* Textura de cuero */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background:
-                        "repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px)",
-                    }}
-                  />
-                  {/* Canal de la bisagra */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 18,
-                      background:
-                        "linear-gradient(90deg, rgba(0,0,0,0.6), rgba(255,255,255,0.08) 55%, rgba(0,0,0,0.35) 75%, transparent)",
-                    }}
-                  />
-                  {/* Marco dorado */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: "14px 14px 14px 28px",
-                      border: "1px solid rgba(250,204,21,0.35)",
-                      borderRadius: 8,
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: "19px 19px 19px 33px",
-                      border: "1px solid rgba(250,204,21,0.15)",
-                      borderRadius: 5,
-                    }}
-                  />
-                  {/* Titulo */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: "0 0 0 14px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 2,
-                    }}
-                  >
-                    <Heart
-                      size={34}
-                      className="text-[#EC4899] fill-[#EC4899] mb-3"
-                      style={{
-                        filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.6))",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 700,
-                        color: "#fff",
-                        letterSpacing: "0.05em",
-                        textShadow: "0 2px 5px rgba(0,0,0,0.6)",
-                      }}
-                    >
-                      Nuestro
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 700,
-                        color: "#EC4899",
-                        letterSpacing: "0.05em",
-                        textShadow: "0 2px 5px rgba(0,0,0,0.6)",
-                      }}
-                    >
-                      Álbum
-                    </span>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 1,
-                        background: "rgba(250,204,21,0.6)",
-                        marginTop: 10,
-                      }}
-                    />
-                  </div>
-                  {/* Brillo que cruza la tapa al abrirse */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background:
-                        "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.18) 48%, transparent 60%)",
-                      backgroundSize: "250% 100%",
-                      backgroundPosition: abierto ? "0% 0%" : "100% 0%",
-                      transition: `background-position ${DURACION_TAPA}ms ${EASE_LIBRO}`,
-                    }}
-                  />
-                  {/* Sombra segun el giro */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "rgba(10,5,25,0.65)",
-                      opacity: abierto ? 1 : 0,
-                      transition: `opacity ${DURACION_TAPA}ms ${EASE_LIBRO}`,
-                    }}
-                  />
-                </div>
-
-                {/* Interior de la tapa */}
-                <div
-                  style={{
-                    ...cara,
-                    transform: "rotateY(180deg) translateZ(2px)",
-                    borderRadius: "3px 12px 12px 3px",
-                    background: "#1B1033",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: "8px 8px 8px 10px",
-                      borderRadius: 6,
-                      background:
-                        "repeating-linear-gradient(45deg, #3b2563 0px, #3b2563 6px, #34205a 6px, #34205a 12px)",
-                      border: "1px solid rgba(250,204,21,0.25)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background:
-                        "linear-gradient(90deg, rgba(0,0,0,0.5), transparent 28%)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "rgba(10,5,25,0.65)",
-                      opacity: abierto ? 0 : 1,
-                      transition: `opacity ${DURACION_TAPA}ms ${EASE_LIBRO}`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <p
-            className="absolute bottom-10 text-xs text-white/30 tracking-wide"
-            style={{ opacity: zoom ? 0 : 1, transition: "opacity 300ms" }}
-          >
-            Toca para saltar
-          </p>
-        </div>
+        <LibroIntro fase={fase} urls={urlsIntro} onSaltar={saltarAnimacion} />
       )}
     </section>
   );

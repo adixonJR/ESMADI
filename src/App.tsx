@@ -21,6 +21,7 @@ import Login from "./conponents/Login";
 import Comidas from "./conponents/Comidas";
 import PeliculasSeries from "./conponents/PeliculasSeries";
 import Figura from "./conponents/Figura";
+import Reproductor from "./conponents/Reproductor.js";
 
 //////////////////// MUSICA //////////////////////
 
@@ -153,6 +154,7 @@ function AppContent() {
           <Route path="/Comidas" element={<Comidas />} />
           <Route path="/PeliculasSeries" element={<PeliculasSeries />} />
           <Route path="/Figura" element={<Figura />} />
+          <Route path="/Reproductor" element={<Reproductor />} />
         </Routes>
       </main>
 

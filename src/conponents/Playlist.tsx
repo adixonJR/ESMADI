@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Music,
   ArrowLeft,
@@ -17,7 +17,11 @@ import {
   useMusica,
   extraerYoutubeId,
   obtenerPortada,
+  type Cancion,
 } from "../conponents/MusicaContext";
+
+// Ajusta esta ruta a la que registres para <Reproductor /> en tu router
+const RUTA_REPRODUCTOR = "/reproductor";
 
 function Playlist() {
   // El reproductor y la lista viven en el contexto global (MusicaProvider),
@@ -38,6 +42,8 @@ function Playlist() {
     alternarFila,
     botonPrincipal,
   } = useMusica();
+
+  const navigate = useNavigate();
 
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -63,6 +69,20 @@ function Playlist() {
       setMostrarForm(false);
     }
     setGuardando(false);
+  };
+
+  // Tocar una canción: si es otra, la reproduce; en ambos casos abre la pantalla de reproducción
+  const tocarFila = (cancion: Cancion) => {
+    if (!cancion.youtube_id) return;
+    if (reproduciendoId !== cancion.id) alternarFila(cancion);
+    navigate(RUTA_REPRODUCTOR);
+  };
+
+  // Botón grande: si no había nada sonando, arranca y abre la pantalla; si no, pausa/reanuda
+  const manejarPrincipal = () => {
+    const yaHabiaCancion = Boolean(cancionActual);
+    botonPrincipal();
+    if (!yaHabiaCancion && reproducibles.length > 0) navigate(RUTA_REPRODUCTOR);
   };
 
   // Miniaturas para armar la portada tipo mosaico de la playlist
@@ -185,7 +205,7 @@ function Playlist() {
         {/* ---------- BARRA DE ACCIONES ---------- */}
         <div className="flex items-center gap-4 mb-6 px-1">
           <button
-            onClick={botonPrincipal}
+            onClick={manejarPrincipal}
             disabled={reproducibles.length === 0}
             className="w-14 h-14 rounded-full bg-[#FF4D8D] hover:bg-[#E63A79] hover:scale-105 active:scale-95 transition flex items-center justify-center shadow-lg shadow-[#FF4D8D]/30 disabled:opacity-40 disabled:hover:scale-100"
             aria-label={sonandoAhora ? "Pausar" : "Reproducir"}
@@ -339,7 +359,7 @@ function Playlist() {
               return (
                 <div
                   key={cancion.id}
-                  onClick={() => alternarFila(cancion)}
+                  onClick={() => tocarFila(cancion)}
                   style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
                   className={`fila-cancion group grid grid-cols-[2rem_1fr_2rem] md:grid-cols-[2rem_1fr_1fr_2rem] items-center gap-3 md:gap-4 px-3 sm:px-6 py-2.5 border-b border-[#453A67]/40 last:border-b-0 transition ${
                     reproducible ? "cursor-pointer" : "cursor-default"

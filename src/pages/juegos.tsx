@@ -98,10 +98,9 @@ function Juegos() {
   const proximos = juegos.filter((j) => !j.disponible);
 
   return (
-    <section
-      className="juegos-root min-h-[100dvh] bg-[#1B1033] text-white px-4 sm:px-6"
+     <section
+      className="juegos-root min-h-[100dvh] bg-[#1B1033] text-white px-4 sm:px-6 pt-6 sm:pt-10"
       style={{
-        paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)",
         paddingBottom: "calc(env(safe-area-inset-bottom) + 2.5rem)",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',

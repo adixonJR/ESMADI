@@ -743,11 +743,9 @@ function Inicio() {
         </div>
       </div>
 
-      <div style={{ height: "env(safe-area-inset-top)" }} />
-
-      <div className="max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
+         <div className="max-w-md sm:max-w-xl md:max-w-2xl mx-auto pt-6 sm:pt-10">
         {/* Saludo (título grande) */}
-        <Reveal className="pt-5 flex items-start justify-between gap-3">
+        <Reveal className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[28px] sm:text-3xl font-bold tracking-tight">
               ¡Hola,

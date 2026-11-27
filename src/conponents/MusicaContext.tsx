@@ -24,7 +24,7 @@ import {
 import supabase from "../lib/supabase.js";
 import { aplicarAIframe, useSilenciado } from "../lib/Sonido.js";
 
-// ---------- Tipos y utilidades (se reutilizan en Playlist.tsx) ----------
+// ---------- Tipos y utilidades (se reutilizan en Playlist.tsx y Reproductor.tsx) ----------
 export interface Cancion {
   id: string;
   titulo: string;
@@ -94,10 +94,22 @@ interface MusicaCtx {
   pausado: boolean;
   aleatorio: boolean;
   setAleatorio: (v: boolean) => void;
+  repetir: boolean;
+  setRepetir: (v: boolean) => void;
+  progreso: { t: number; d: number };
 
   alternarFila: (c: Cancion) => void;
   botonPrincipal: () => void;
+  alternarPausa: () => void;
+  siguiente: () => void;
+  anterior: () => void;
+  buscarSegundo: (segundos: number) => void;
   detener: () => void;
+
+  // La pantalla de reproducción avisa cuando se abre / se cierra:
+  // mientras está abierta la ventana flotante se esconde, y al salir queda como notita.
+  entrarPantalla: () => void;
+  salirPantalla: () => void;
 }
 
 const Ctx = createContext<MusicaCtx | null>(null);
@@ -116,7 +128,9 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
   const [reproduciendoId, setReproduciendoId] = useState<string | null>(null);
   const [pausado, setPausado] = useState(false);
   const [aleatorio, setAleatorio] = useState(false);
+  const [repetir, setRepetir] = useState(false);
   const [compacto, setCompacto] = useState(false);
+  const [enPantalla, setEnPantalla] = useState(false);
   const [progreso, setProgreso] = useState({ t: 0, d: 0 });
 
   // Posición de la ventana flotante (se recuerda entre visitas)
@@ -144,7 +158,10 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const irARef = useRef<(dir: 1 | -1) => void>(() => {});
+  const salirRef = useRef<() => void>(() => {});
+  const repetirRef = useRef(false);
   const cargadoRef = useRef(false);
+  repetirRef.current = repetir;
 
   const silenciado = useSilenciado();
 
@@ -312,12 +329,19 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
     reproducir(primera.id);
   };
 
+  // Salta a un segundo concreto (barra de progreso de la pantalla y líneas de la letra)
+  const buscarSegundo = (segundos: number) => {
+    if (progreso.d <= 0) return;
+    const t = Math.min(Math.max(segundos, 0), progreso.d);
+    enviarComando("seekTo", [t, true]);
+    setProgreso((p) => ({ ...p, t }));
+  };
+
   const buscarEnBarra = (e: React.MouseEvent<HTMLDivElement>) => {
     if (progreso.d <= 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-    enviarComando("seekTo", [ratio * progreso.d, true]);
-    setProgreso((p) => ({ ...p, t: ratio * p.d }));
+    buscarSegundo(ratio * progreso.d);
   };
 
   // Reinicia la barra de progreso al cambiar de canción
@@ -357,8 +381,21 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (estado === 0) irARef.current(1); // terminó -> siguiente
-      else if (estado === 1) setPausado(false);
+      if (estado === 0) {
+        // terminó -> repetir la misma o pasar a la siguiente
+        if (repetirRef.current) {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: "command", func: "seekTo", args: [0, true] }),
+            YT_ORIGIN
+          );
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+            YT_ORIGIN
+          );
+        } else {
+          irARef.current(1);
+        }
+      } else if (estado === 1) setPausado(false);
       else if (estado === 2) setPausado(true);
     };
 
@@ -415,6 +452,16 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
       )
     );
   };
+
+  // ---------- Pantalla de reproducción ----------
+  // Al salir de la pantalla, la ventana vuelve como notita (si hay música sonando).
+  // Se usa una ref para que el cierre de la pantalla siempre llame a la versión más reciente.
+  salirRef.current = () => {
+    setEnPantalla(false);
+    if (cancionActual && !minimizado) minimizar();
+  };
+  const entrarPantalla = useCallback(() => setEnPantalla(true), []);
+  const salirPantalla = useCallback(() => salirRef.current(), []);
 
   // Guarda posición y estado (no mientras se arrastra)
   useEffect(() => {
@@ -516,28 +563,41 @@ export function MusicaProvider({ children }: { children: ReactNode }) {
         pausado,
         aleatorio,
         setAleatorio,
+        repetir,
+        setRepetir,
+        progreso,
         alternarFila,
         botonPrincipal,
+        alternarPausa,
+        siguiente: () => irA(1),
+        anterior: () => irA(-1),
+        buscarSegundo,
         detener,
+        entrarPantalla,
+        salirPantalla,
       }}
     >
       {children}
 
-      {/* ---------- VENTANA FLOTANTE (cuadrada, movible, se achica a una notita) ---------- */}
+      {/* ---------- VENTANA FLOTANTE (cuadrada, movible, se achica a una notita) ----------
+          En la pantalla de reproducción se manda fuera de la vista (sin desmontar el iframe,
+          así la música no se corta) y al salir aparece como notita. */}
       {cancionActual && cancionActual.youtube_id && (
         <div
           ref={cajaRef}
+          aria-hidden={enPantalla}
           className={`player-flotante fixed z-50 overflow-hidden text-white shadow-2xl ${
             minimizado
               ? "rounded-full bg-gradient-to-br from-[#B388FF] to-[#FF4D8D] shadow-[#FF4D8D]/40"
               : "rounded-2xl bg-[#1E1534]/95 backdrop-blur-xl border border-[#453A67] shadow-black/60"
           }`}
           style={{
-            left: posActual.x,
+            left: enPantalla ? -10000 : posActual.x,
             top: posActual.y,
             width: minimizado ? TAM_NOTA : ANCHO_REPRODUCTOR,
             height: minimizado ? TAM_NOTA : undefined,
             touchAction: "none",
+            pointerEvents: enPantalla ? "none" : undefined,
             transition: "width 250ms ease, height 250ms ease, border-radius 250ms ease",
           }}
           onTouchStart={alTocar}

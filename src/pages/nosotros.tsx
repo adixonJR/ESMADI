@@ -108,27 +108,23 @@ function Nosotros() {
   }, []);
 
   return (
-    <section
-      className="px-6 py-10"
+     <section
+      className="juegos-root min-h-[100dvh] bg-[#1B1033] text-white px-4 sm:px-6 pt-6 sm:pt-10"
       style={{
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 2.5rem)",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
         WebkitFontSmoothing: "antialiased",
       }}
     >
       {/* Título */}
-      <div className="text-center mb-12">
-        
-        {/* Encabezado */}
-        <header className="entrar mb-7">
-          <h1 className="text-[32px] font-bold tracking-tight leading-none">Nosotros</h1>
-          <p className="text-[15px] opacity-70">
+            {/* Encabezado */}
+      <header className="entrar mb-7">
+        <h1 className="text-[32px] font-bold tracking-tight leading-none">Nosotros</h1>
+        <p className="mt-2 text-[15px] text-[#B8B5C9]">
           Nuestra historia, nuestros recuerdos y nuestro futuro
         </p>
-        </header>
-        
-        
-      </div>
+      </header>
 
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Historia */}
